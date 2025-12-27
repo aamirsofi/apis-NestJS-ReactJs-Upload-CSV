@@ -3,7 +3,6 @@ import {
   Column,
   PrimaryGeneratedColumn,
   CreateDateColumn,
-  UpdateDateColumn,
 } from 'typeorm';
 import { UploadStatus } from '../interfaces/upload-status.enum';
 
@@ -43,4 +42,3 @@ export class UploadRecordEntity {
   @Column({ type: 'jsonb', nullable: true })
   data?: Record<string, string>[]; // CSV data stored as JSONB
 }
-

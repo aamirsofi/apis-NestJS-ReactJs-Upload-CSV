@@ -168,7 +168,8 @@ export class CsvImportController {
   @Get('history/:id')
   @ApiOperation({
     summary: 'Get upload details by ID',
-    description: 'Retrieves detailed information about a specific upload record.',
+    description:
+      'Retrieves detailed information about a specific upload record.',
   })
   @ApiParam({
     name: 'id',
