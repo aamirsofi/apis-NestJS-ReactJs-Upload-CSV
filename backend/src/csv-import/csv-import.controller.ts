@@ -216,6 +216,20 @@ export class CsvImportController {
     type: Number,
     description: 'Maximum file size in bytes',
   })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default: 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Number of records per page (default: 10, max: 100)',
+    example: 10,
+  })
   @ApiResponse({
     status: 200,
     description: 'Upload history retrieved successfully',
@@ -228,35 +242,55 @@ export class CsvImportController {
     @Query('endDate') endDate?: string,
     @Query('minSize') minSize?: string,
     @Query('maxSize') maxSize?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ): Promise<UploadHistoryResponseDto> {
-    // Get filtered uploads using advanced filtering
-    const uploads = await this.uploadHistoryService.getUploadsWithFilters({
-      status,
-      search,
-      startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined,
-      minSize: minSize ? parseInt(minSize, 10) : undefined,
-      maxSize: maxSize ? parseInt(maxSize, 10) : undefined,
-    });
+    // Parse pagination parameters
+    const pageNum = page ? Math.max(1, parseInt(page, 10)) : 1;
+    const limitNum = limit
+      ? Math.min(100, Math.max(1, parseInt(limit, 10)))
+      : 10;
 
-    // Calculate statistics for the response
-    const success = uploads.filter(
+    // Get all uploads for statistics (without pagination)
+    const allUploads = await this.uploadHistoryService.getAllUploads();
+
+    // Calculate total statistics from all uploads
+    const totalSuccess = allUploads.filter(
       (u) => u.status === UploadStatus.SUCCESS,
     ).length;
-    const failed = uploads.filter(
+    const totalFailed = allUploads.filter(
       (u) => u.status === UploadStatus.FAILED,
     ).length;
-    const processing = uploads.filter(
+    const totalProcessing = allUploads.filter(
       (u) => u.status === UploadStatus.PROCESSING,
     ).length;
 
-    // Return uploads with statistics
+    // Get filtered and paginated uploads
+    const result = await this.uploadHistoryService.getUploadsWithFilters(
+      {
+        status,
+        search,
+        startDate: startDate ? new Date(startDate) : undefined,
+        endDate: endDate ? new Date(endDate) : undefined,
+        minSize: minSize ? parseInt(minSize, 10) : undefined,
+        maxSize: maxSize ? parseInt(maxSize, 10) : undefined,
+      },
+      pageNum,
+      limitNum,
+    );
+
+    // Return paginated uploads with statistics
     return {
-      uploads,
-      total: uploads.length,
-      success,
-      failed,
-      processing,
+      uploads: result.records,
+      total: result.total,
+      success: totalSuccess,
+      failed: totalFailed,
+      processing: totalProcessing,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages,
+      hasNextPage: result.page < result.totalPages,
+      hasPreviousPage: result.page > 1,
     };
   }
 

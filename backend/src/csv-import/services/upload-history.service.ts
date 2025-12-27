@@ -167,19 +167,31 @@ export class UploadHistoryService {
   }
 
   /**
-   * getUploadsWithFilters - Retrieves uploads with advanced filtering
+   * getUploadsWithFilters - Retrieves uploads with advanced filtering and pagination
    *
    * @param filters - Filter criteria object
-   * @returns Array of upload records matching all filter criteria
+   * @param page - Page number (1-based)
+   * @param limit - Number of records per page
+   * @returns Object containing filtered upload records and pagination metadata
    */
-  async getUploadsWithFilters(filters: {
-    status?: UploadStatus;
-    search?: string;
-    startDate?: Date;
-    endDate?: Date;
-    minSize?: number;
-    maxSize?: number;
-  }): Promise<UploadRecord[]> {
+  async getUploadsWithFilters(
+    filters: {
+      status?: UploadStatus;
+      search?: string;
+      startDate?: Date;
+      endDate?: Date;
+      minSize?: number;
+      maxSize?: number;
+    },
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    records: UploadRecord[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     // Build query with filters
     const queryBuilder = this.uploadRepository.createQueryBuilder('upload');
 

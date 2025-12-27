@@ -34,6 +34,8 @@ export interface UploadHistoryFilters {
   endDate?: string;
   minSize?: number;
   maxSize?: number;
+  page?: number;
+  limit?: number;
 }
 
 export const getUploadHistory = async (

@@ -20,9 +20,18 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
   const [endDate, setEndDate] = useState<string>('');
   const [fileSizeFilter, setFileSizeFilter] = useState<string>('all'); // 'all', 'small', 'medium', 'large'
   
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  
   const [selectedUpload, setSelectedUpload] = useState<UploadRecord | null>(null);
   const [uploadData, setUploadData] = useState<CsvRow[] | null>(null);
   const [loadingData, setLoadingData] = useState(false);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, searchQuery, startDate, endDate, fileSizeFilter]);
 
   // Debounce search query to avoid too many API calls
   useEffect(() => {
@@ -43,7 +52,7 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
     }, 5000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, startDate, endDate, fileSizeFilter]);
+  }, [filter, startDate, endDate, fileSizeFilter, currentPage, pageSize]);
 
   // Load all history (no filter) to get accurate total counts
   const loadAllHistory = async () => {
@@ -100,6 +109,10 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
         }
       }
       
+      // Add pagination
+      filters.page = currentPage;
+      filters.limit = pageSize;
+      
       const data = await getUploadHistory(filters);
       setHistory(data);
       setError(null);
@@ -117,10 +130,68 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
     setStartDate('');
     setEndDate('');
     setFileSizeFilter('all');
+    setCurrentPage(1);
   };
 
   // Check if any filters are active
   const hasActiveFilters = filter !== 'all' || searchQuery.trim() || startDate || endDate || fileSizeFilter !== 'all';
+
+  // Pagination handlers
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const goToNextPage = () => {
+    if (history?.hasNextPage) {
+      goToPage(currentPage + 1);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (history?.hasPreviousPage) {
+      goToPage(currentPage - 1);
+    }
+  };
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    if (!history) return [];
+    const totalPages = history.totalPages;
+    const current = currentPage;
+    const pages: (number | string)[] = [];
+
+    if (totalPages <= 7) {
+      // Show all pages if 7 or fewer
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Show first page
+      pages.push(1);
+
+      if (current > 3) {
+        pages.push('...');
+      }
+
+      // Show pages around current
+      const start = Math.max(2, current - 1);
+      const end = Math.min(totalPages - 1, current + 1);
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      if (current < totalPages - 2) {
+        pages.push('...');
+      }
+
+      // Show last page
+      pages.push(totalPages);
+    }
+
+    return pages;
+  };
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -545,10 +616,127 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Controls */}
+              {history && history.totalPages > 1 && (
+                <div className={`mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 ${
+                  darkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  {/* Page Info */}
+                  <div className="flex items-center gap-2 text-sm">
+                    <span>
+                      Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, history.total)} of {history.total} results
+                    </span>
+                    <span className="mx-2">|</span>
+                    <span>Page {currentPage} of {history.totalPages}</span>
+                  </div>
+
+                  {/* Page Size Selector */}
+                  <div className="flex items-center gap-2">
+                    <label className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Per page:
+                    </label>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg border text-sm transition-smooth ${
+                        darkMode
+                          ? 'bg-gray-900 border-gray-700 text-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                          : 'bg-white border-gray-300 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                      }`}
+                    >
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+
+                  {/* Pagination Buttons */}
+                  <div className="flex items-center gap-2">
+                    {/* Previous Button */}
+                    <button
+                      onClick={goToPreviousPage}
+                      disabled={!history.hasPreviousPage}
+                      className={`px-3 py-2 rounded-lg transition-smooth flex items-center gap-1 text-sm font-medium ${
+                        history.hasPreviousPage
+                          ? darkMode
+                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                          : darkMode
+                            ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                      Previous
+                    </button>
+
+                    {/* Page Numbers */}
+                    <div className="flex items-center gap-1">
+                      {getPageNumbers().map((page, index) => {
+                        if (page === '...') {
+                          return (
+                            <span key={`ellipsis-${index}`} className={`px-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                              ...
+                            </span>
+                          );
+                        }
+                        const pageNum = page as number;
+                        const isActive = pageNum === currentPage;
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => goToPage(pageNum)}
+                            className={`px-3 py-2 rounded-lg transition-smooth text-sm font-medium ${
+                              isActive
+                                ? darkMode
+                                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/50'
+                                  : 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                                : darkMode
+                                  ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                  : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Next Button */}
+                    <button
+                      onClick={goToNextPage}
+                      disabled={!history.hasNextPage}
+                      className={`px-3 py-2 rounded-lg transition-smooth flex items-center gap-1 text-sm font-medium ${
+                        history.hasNextPage
+                          ? darkMode
+                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                          : darkMode
+                            ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      }`}
+                    >
+                      Next
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
+              </>
+            ) : null}
 
       {/* Modal for viewing CSV data */}
       {selectedUpload && (
