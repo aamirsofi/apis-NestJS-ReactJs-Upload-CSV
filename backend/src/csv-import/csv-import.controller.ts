@@ -151,12 +151,30 @@ export class CsvImportController {
   ): Promise<CsvImportResponseDto> {
     // Validation: Check if file was uploaded
     if (!file) {
-      throw new BadRequestException('No file uploaded');
+      throw new BadRequestException('No file uploaded. Please select a CSV file to upload');
     }
 
     // Validation: Check if file is CSV format
-    if (!file.originalname.match(/\.(csv)$/)) {
-      throw new BadRequestException('Only CSV files are allowed');
+    if (!file.originalname.match(/\.(csv)$/i)) {
+      throw new BadRequestException(
+        `Invalid file type: "${file.originalname}". Only CSV files (.csv) are allowed`,
+      );
+    }
+
+    // Validation: Check file size (max 10MB)
+    const maxFileSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxFileSize) {
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      throw new BadRequestException(
+        `File "${file.originalname}" is too large (${fileSizeMB}MB). Maximum file size is 10MB`,
+      );
+    }
+
+    // Validation: Check if file is empty
+    if (file.size === 0) {
+      throw new BadRequestException(
+        `File "${file.originalname}" is empty. Please upload a valid CSV file with data`,
+      );
     }
 
     // Step 1: Create upload record in database with PROCESSING status
@@ -256,13 +274,30 @@ export class CsvImportController {
       };
     } catch (error) {
       // If parsing fails, update record with FAILED status
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      let errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Improve error messages with more context
+      if (errorMessage.includes('CSV file is empty')) {
+        errorMessage = `CSV file "${file.originalname}" is empty. Please upload a valid CSV file with data`;
+      } else if (errorMessage.includes('only a header row')) {
+        errorMessage = `CSV file "${file.originalname}" contains only a header row with no data rows. Please ensure your CSV file has data rows`;
+      } else if (errorMessage.includes('no valid data rows')) {
+        errorMessage = `CSV file "${file.originalname}" contains no valid data rows (all rows are empty). Please check your CSV file format`;
+      } else if (errorMessage.includes('CSV parsing failed')) {
+        // Extract the underlying error message
+        const underlyingError = errorMessage.replace('CSV parsing failed: ', '');
+        errorMessage = `Failed to parse CSV file "${file.originalname}": ${underlyingError}. Please check that the file is a valid CSV format`;
+      } else if (!errorMessage.includes(file.originalname)) {
+        // Add filename context if not already present
+        errorMessage = `Failed to process CSV file "${file.originalname}": ${errorMessage}`;
+      }
+      
       await this.uploadHistoryService.updateUploadStatus(
         uploadRecord.id,
         UploadStatus.FAILED,
         {
           errors: [errorMessage],
-          message: `Failed to parse CSV: ${errorMessage}`,
+          message: errorMessage,
         },
       );
 
@@ -278,7 +313,7 @@ export class CsvImportController {
       });
 
       // Throw error to return error response to client
-      throw new BadRequestException(`Failed to parse CSV: ${errorMessage}`);
+      throw new BadRequestException(errorMessage);
     }
   }
 

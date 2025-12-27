@@ -83,10 +83,38 @@ export const uploadCsv = async (
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      const message = error.response?.data?.message || error.message || 'Failed to upload CSV file';
+      // Extract error message from response
+      let message = 'Failed to upload CSV file';
+      
+      if (error.response) {
+        // Server responded with error
+        const responseData = error.response.data;
+        if (responseData?.message) {
+          message = responseData.message;
+        } else if (typeof responseData === 'string') {
+          message = responseData;
+        } else if (error.response.status === 400) {
+          message = 'Invalid file. Please check the file format and try again';
+        } else if (error.response.status === 401) {
+          message = 'Authentication required. Please log in and try again';
+        } else if (error.response.status === 413) {
+          message = 'File is too large. Maximum file size is 10MB';
+        } else if (error.response.status === 429) {
+          message = 'Too many requests. Please wait a moment and try again';
+        } else if (error.response.status >= 500) {
+          message = 'Server error. Please try again later';
+        }
+      } else if (error.request) {
+        // Request was made but no response received
+        message = 'Network error. Please check your connection and try again';
+      } else {
+        // Error setting up the request
+        message = error.message || 'Failed to upload CSV file';
+      }
+      
       throw new Error(message);
     }
-    throw new Error('An unexpected error occurred');
+    throw new Error('An unexpected error occurred while uploading the file');
   }
 };
 

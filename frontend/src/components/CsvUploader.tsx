@@ -97,31 +97,107 @@ const CsvUploader: React.FC<CsvUploaderProps> = ({
   }, []);
 
   const onDrop = useCallback(
-    async (acceptedFiles: File[]) => {
+    async (acceptedFiles: File[], rejectedFiles: any[]) => {
       // Prevent multiple simultaneous uploads
       if (isUploading || loading) {
         return;
       }
 
-      const file = acceptedFiles[0];
-      if (!file) return;
+      // Handle rejected files (invalid file type, etc.)
+      if (rejectedFiles && rejectedFiles.length > 0) {
+        const rejection = rejectedFiles[0];
+        let errorMessage = 'Invalid file upload';
+        
+        if (rejection.errors) {
+          const error = rejection.errors[0];
+          if (error.code === 'file-invalid-type') {
+            errorMessage = 'Invalid file type. Please upload a CSV file (.csv)';
+          } else if (error.code === 'file-too-large') {
+            errorMessage = 'File is too large. Maximum file size is 10MB';
+          } else if (error.code === 'file-too-small') {
+            errorMessage = 'File is too small. Please upload a valid CSV file';
+          } else {
+            errorMessage = error.message || 'Invalid file. Please check the file and try again';
+          }
+        }
+        
+        showError(errorMessage);
+        onUploadError(errorMessage);
+        return;
+      }
 
-      // Validate file type
+      const file = acceptedFiles[0];
+      if (!file) {
+        showError('No file selected. Please select a CSV file to upload');
+        onUploadError('No file selected');
+        return;
+      }
+
+      // Validate file type (double check)
       if (!file.name.match(/\.(csv)$/i)) {
-        showError('Please upload a CSV file');
-        onUploadError('Please upload a CSV file');
+        const errorMessage = `Invalid file type: "${file.name}". Please upload a CSV file (.csv)`;
+        showError(errorMessage);
+        onUploadError(errorMessage);
+        return;
+      }
+
+      // Validate file size (10MB = 10 * 1024 * 1024 bytes)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        const errorMessage = `File "${file.name}" is too large (${fileSizeMB}MB). Maximum file size is 10MB`;
+        showError(errorMessage);
+        onUploadError(errorMessage);
+        return;
+      }
+
+      // Validate file is not empty
+      if (file.size === 0) {
+        const errorMessage = `File "${file.name}" is empty. Please upload a valid CSV file with data`;
+        showError(errorMessage);
+        onUploadError(errorMessage);
         return;
       }
 
       // Parse CSV for preview
       try {
         const { data, columns } = await parseCsvPreview(file);
+        
+        // Validate that CSV has data
+        if (!data || data.length === 0) {
+          const errorMessage = `CSV file "${file.name}" appears to be empty or has no data rows`;
+          showError(errorMessage);
+          onUploadError(errorMessage);
+          return;
+        }
+
+        // Validate that CSV has columns
+        if (!columns || columns.length === 0) {
+          const errorMessage = `CSV file "${file.name}" has no column headers. Please ensure your CSV file has a header row`;
+          showError(errorMessage);
+          onUploadError(errorMessage);
+          return;
+        }
+
         setPreviewFile(file);
         setPreviewData(data);
         setPreviewColumns(columns);
         setShowPreview(true);
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to parse CSV file';
+        let errorMessage = 'Failed to parse CSV file';
+        
+        if (error instanceof Error) {
+          if (error.message === 'CSV file is empty') {
+            errorMessage = `CSV file "${file.name}" is empty. Please upload a valid CSV file with data`;
+          } else if (error.message === 'Failed to parse CSV file') {
+            errorMessage = `Failed to parse CSV file "${file.name}". Please check that the file is a valid CSV format`;
+          } else if (error.message === 'Failed to read file') {
+            errorMessage = `Failed to read file "${file.name}". The file may be corrupted or inaccessible`;
+          } else {
+            errorMessage = `${error.message}: "${file.name}"`;
+          }
+        }
+        
         showError(errorMessage);
         onUploadError(errorMessage);
       }
@@ -176,6 +252,8 @@ const CsvUploader: React.FC<CsvUploaderProps> = ({
     multiple: false,
     disabled: loading || isUploading,
     noClick: loading || isUploading,
+    maxSize: 10 * 1024 * 1024, // 10MB
+    minSize: 1, // At least 1 byte
   });
 
   // Keyboard shortcut: Ctrl+U to trigger file upload
