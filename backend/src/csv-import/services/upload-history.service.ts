@@ -243,9 +243,64 @@ export class UploadHistoryService {
     );
     queryBuilder.addOrderBy('upload.uploadedAt', 'DESC');
 
+    // Get total count BEFORE pagination
+    const total = await queryBuilder.getCount();
+
+    // Apply pagination
+    const skip = (page - 1) * limit;
+    queryBuilder.skip(skip).take(limit);
+
     // Execute query and convert to interface objects
     const records = await queryBuilder.getMany();
-    return records.map((record) => this.entityToInterface(record));
+    const mappedRecords = records.map((record) => this.entityToInterface(record));
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      records: mappedRecords,
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+  }
+
+  /**
+   * storeOriginalFile - Stores the original CSV file buffer for later download
+   *
+   * @param id - Upload record ID
+   * @param fileBuffer - Original file buffer
+   */
+  async storeOriginalFile(id: string, fileBuffer: Buffer): Promise<void> {
+    await this.uploadRepository.update(id, {
+      originalFile: fileBuffer,
+    });
+  }
+
+  /**
+   * getOriginalFile - Retrieves the original CSV file buffer
+   *
+   * @param id - Upload record ID
+   * @returns Original file buffer or undefined if not found
+   */
+  async getOriginalFile(id: string): Promise<Buffer | undefined> {
+    const record = await this.uploadRepository.findOne({
+      where: { id },
+      select: ['id', 'originalFile', 'fileName'],
+    });
+    return record?.originalFile;
+  }
+
+  /**
+   * deleteUploads - Deletes multiple upload records by IDs
+   *
+   * @param ids - Array of upload record IDs to delete
+   * @returns Number of deleted records
+   */
+  async deleteUploads(ids: string[]): Promise<number> {
+    const result = await this.uploadRepository.delete(ids);
+    return result.affected || 0;
   }
 
   /**

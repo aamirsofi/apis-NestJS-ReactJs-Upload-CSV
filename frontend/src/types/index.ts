@@ -8,6 +8,7 @@ export interface CsvData {
   data: CsvRow[];
   totalRows: number;
   uploadId?: string;
+  warnings?: Array<{ row: number; message: string }>;
 }
 
 export enum UploadStatus {

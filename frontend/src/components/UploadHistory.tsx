@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { UploadHistoryResponse, UploadRecord, UploadStatus, CsvRow } from '../types';
-import { getUploadHistory, getUploadData, UploadHistoryFilters } from '../services/api';
+import { getUploadHistory, getUploadData, UploadHistoryFilters, downloadOriginalFile, bulkDeleteUploads, exportCsvData } from '../services/api';
 
 interface UploadHistoryProps {
   onUploadClick?: (upload: UploadRecord) => void;
@@ -23,6 +23,17 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
   // Pagination states
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
+  
+  // Bulk selection and sorting
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  
+  // Modal data sorting and pagination
+  const [modalSortConfig, setModalSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [modalCurrentPage, setModalCurrentPage] = useState<number>(1);
+  const [modalPageSize, setModalPageSize] = useState<number>(5); // Default to 5 so pagination shows more often
+  const [exportingModal, setExportingModal] = useState(false);
   
   const [selectedUpload, setSelectedUpload] = useState<UploadRecord | null>(null);
   const [uploadData, setUploadData] = useState<CsvRow[] | null>(null);
@@ -254,6 +265,71 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
   const closeModal = () => {
     setSelectedUpload(null);
     setUploadData(null);
+    setModalSortConfig(null);
+    setModalCurrentPage(1);
+    setModalPageSize(10);
+  };
+
+  // Modal data sorting and pagination
+  const sortedModalData = useMemo(() => {
+    if (!uploadData || uploadData.length === 0) return [];
+    if (!modalSortConfig) return uploadData;
+    
+    return [...uploadData].sort((a, b) => {
+      const aValue = a[modalSortConfig.key] || '';
+      const bValue = b[modalSortConfig.key] || '';
+      
+      if (modalSortConfig.direction === 'asc') {
+        return String(aValue).localeCompare(String(bValue));
+      } else {
+        return String(bValue).localeCompare(String(aValue));
+      }
+    });
+  }, [uploadData, modalSortConfig]);
+
+  const modalTotalPages = Math.ceil(sortedModalData.length / modalPageSize);
+  const modalStartIndex = (modalCurrentPage - 1) * modalPageSize;
+  const modalEndIndex = modalStartIndex + modalPageSize;
+  const paginatedModalData = sortedModalData.slice(modalStartIndex, modalEndIndex);
+
+  const handleModalSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (modalSortConfig && modalSortConfig.key === key && modalSortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setModalSortConfig({ key, direction });
+    setModalCurrentPage(1);
+  };
+
+  const getModalSortIcon = (header: string) => {
+    if (!modalSortConfig || modalSortConfig.key !== header) {
+      return (
+        <svg className="w-4 h-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        </svg>
+      );
+    }
+    return modalSortConfig.direction === 'asc' ? (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+      </svg>
+    ) : (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    );
+  };
+
+  const handleModalExport = async () => {
+    if (!selectedUpload?.id) return;
+    try {
+      setExportingModal(true);
+      await exportCsvData(selectedUpload.id, selectedUpload.fileName);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to export CSV');
+    } finally {
+      setExportingModal(false);
+    }
   };
 
   if (loading && !history) {
@@ -509,129 +585,134 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
           <p className="text-lg">No uploads found</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border overflow-hidden">
-          <table className={`min-w-full divide-y ${
-            darkMode ? 'divide-gray-700' : 'divide-gray-200'
-          }`}>
-            <thead className={darkMode ? 'bg-gray-800' : 'bg-gradient-to-r from-indigo-50 to-purple-50'}>
-              <tr>
-                {['File Name', 'Status', 'Size', 'Rows', 'Uploaded At', 'Message', 'Actions'].map((header) => (
-                  <th
-                    key={header}
-                    className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider ${
-                      darkMode ? 'text-gray-300' : 'text-gray-700'
+        <>
+          <div className="overflow-x-auto rounded-xl border overflow-hidden">
+            <table className={`min-w-full divide-y ${
+              darkMode ? 'divide-gray-700' : 'divide-gray-200'
+            }`}>
+              <thead className={darkMode ? 'bg-gray-800' : 'bg-gradient-to-r from-indigo-50 to-purple-50'}>
+                <tr>
+                  {['File Name', 'Status', 'Size', 'Rows', 'Uploaded At', 'Message', 'Actions'].map((header) => (
+                    <th
+                      key={header}
+                      className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider ${
+                        darkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}
+                    >
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className={`divide-y ${
+                darkMode ? 'bg-gray-900/50 divide-gray-800' : 'bg-white divide-gray-200'
+              }`}>
+                {history?.uploads.map((upload) => (
+                  <tr
+                    key={upload.id}
+                    className={`transition-smooth ${
+                      darkMode ? 'hover:bg-gray-800' : 'hover:bg-indigo-50/50'
                     }`}
                   >
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className={`divide-y ${
-              darkMode ? 'bg-gray-900/50 divide-gray-800' : 'bg-white divide-gray-200'
-            }`}>
-              {history?.uploads.map((upload) => (
-                <tr
-                  key={upload.id}
-                  className={`transition-smooth ${
-                    darkMode ? 'hover:bg-gray-800' : 'hover:bg-indigo-50/50'
-                  }`}
-                >
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                    darkMode ? 'text-gray-200' : 'text-gray-900'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      {/* Modern document icon with rounded style */}
-                      <svg className={`w-5 h-5 ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      {upload.fileName}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={getStatusBadge(upload.status)}>
-                      {upload.status === UploadStatus.SUCCESS && (
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
+                      darkMode ? 'text-gray-200' : 'text-gray-900'
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        {/* Modern document icon with rounded style */}
+                        <svg className={`w-5 h-5 ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                      )}
-                      {upload.status === UploadStatus.FAILED && (
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                      {upload.status === UploadStatus.PROCESSING && (
-                        <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                      )}
-                      {formatStatus(upload.status)}
-                    </span>
-                  </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                    darkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`}>
-                    {formatFileSize(upload.fileSize)}
-                  </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                    darkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`}>
-                    {upload.totalRows ?? <span className="opacity-50">-</span>}
-                  </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                    darkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`}>
-                    {formatDate(upload.uploadedAt)}
-                  </td>
-                  <td className={`px-6 py-4 text-sm ${
-                    darkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`}>
-                    <div className="max-w-xs truncate">
-                      {upload.message || <span className="opacity-50">-</span>}
-                    </div>
-                    {upload.errors && upload.errors.length > 0 && (
-                      <div className={`text-xs mt-1 flex items-center gap-1 ${
-                        darkMode ? 'text-red-400' : 'text-red-600'
-                      }`}>
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {upload.errors.length} error(s)
+                        {upload.fileName}
                       </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {upload.status === UploadStatus.SUCCESS && (
-                      <button
-                        onClick={(e) => handleViewData(upload, e)}
-                        className={`px-4 py-2 rounded-xl font-semibold transition-smooth hover-lift ${
-                          darkMode
-                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-lg shadow-indigo-500/50'
-                            : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-lg shadow-indigo-500/30'
-                        }`}
-                      >
-                        View Data
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-                  </tbody>
-                </table>
-              </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={getStatusBadge(upload.status)}>
+                        {upload.status === UploadStatus.SUCCESS && (
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                        {upload.status === UploadStatus.FAILED && (
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                        {upload.status === UploadStatus.PROCESSING && (
+                          <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        )}
+                        {formatStatus(upload.status)}
+                      </span>
+                    </td>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                      darkMode ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
+                      {formatFileSize(upload.fileSize)}
+                    </td>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                      darkMode ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
+                      {upload.totalRows ?? <span className="opacity-50">-</span>}
+                    </td>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                      darkMode ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
+                      {formatDate(upload.uploadedAt)}
+                    </td>
+                    <td className={`px-6 py-4 text-sm ${
+                      darkMode ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
+                      <div className="max-w-xs truncate">
+                        {upload.message || <span className="opacity-50">-</span>}
+                      </div>
+                      {upload.errors && upload.errors.length > 0 && (
+                        <div className={`text-xs mt-1 flex items-center gap-1 ${
+                          darkMode ? 'text-red-400' : 'text-red-600'
+                        }`}>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {upload.errors.length} error(s)
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {upload.status === UploadStatus.SUCCESS && (
+                        <button
+                          onClick={(e) => handleViewData(upload, e)}
+                          className={`px-4 py-2 rounded-xl font-semibold transition-smooth hover-lift ${
+                            darkMode
+                              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-lg shadow-indigo-500/50'
+                              : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-lg shadow-indigo-500/30'
+                          }`}
+                        >
+                          View Data
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-              {/* Pagination Controls */}
-              {history && history.totalPages > 1 && (
+          {/* Pagination Controls - Always show when history exists */}
+          {history && history.uploads.length > 0 && (
                 <div className={`mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 ${
                   darkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
                   {/* Page Info */}
                   <div className="flex items-center gap-2 text-sm">
                     <span>
-                      Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, history.total)} of {history.total} results
+                      Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, history.total)} of {history.total} result{history.total !== 1 ? 's' : ''}
                     </span>
-                    <span className="mx-2">|</span>
-                    <span>Page {currentPage} of {history.totalPages}</span>
+                    {history.totalPages > 1 && (
+                      <>
+                        <span className="mx-2">|</span>
+                        <span>Page {currentPage} of {history.totalPages}</span>
+                      </>
+                    )}
                   </div>
 
                   {/* Page Size Selector */}
@@ -659,84 +740,90 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                     </select>
                   </div>
 
-                  {/* Pagination Buttons */}
-                  <div className="flex items-center gap-2">
-                    {/* Previous Button */}
-                    <button
-                      onClick={goToPreviousPage}
-                      disabled={!history.hasPreviousPage}
-                      className={`px-3 py-2 rounded-lg transition-smooth flex items-center gap-1 text-sm font-medium ${
-                        history.hasPreviousPage
-                          ? darkMode
-                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
-                          : darkMode
-                            ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
-                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      }`}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                      Previous
-                    </button>
+                  {/* Pagination Buttons - Show when multiple pages */}
+                  {history.totalPages > 1 ? (
+                    <div className="flex items-center gap-2">
+                      {/* Previous Button */}
+                      <button
+                        onClick={goToPreviousPage}
+                        disabled={!history.hasPreviousPage}
+                        className={`px-3 py-2 rounded-lg transition-smooth flex items-center gap-1 text-sm font-medium ${
+                          history.hasPreviousPage
+                            ? darkMode
+                              ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                              : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                            : darkMode
+                              ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Previous
+                      </button>
 
-                    {/* Page Numbers */}
-                    <div className="flex items-center gap-1">
-                      {getPageNumbers().map((page, index) => {
-                        if (page === '...') {
+                      {/* Page Numbers */}
+                      <div className="flex items-center gap-1">
+                        {getPageNumbers().map((page, index) => {
+                          if (page === '...') {
+                            return (
+                              <span key={`ellipsis-${index}`} className={`px-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                ...
+                              </span>
+                            );
+                          }
+                          const pageNum = page as number;
+                          const isActive = pageNum === currentPage;
                           return (
-                            <span key={`ellipsis-${index}`} className={`px-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                              ...
-                            </span>
+                            <button
+                              key={pageNum}
+                              onClick={() => goToPage(pageNum)}
+                              className={`px-3 py-2 rounded-lg transition-smooth text-sm font-medium ${
+                                isActive
+                                  ? darkMode
+                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/50'
+                                    : 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                                  : darkMode
+                                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                    : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
                           );
-                        }
-                        const pageNum = page as number;
-                        const isActive = pageNum === currentPage;
-                        return (
-                          <button
-                            key={pageNum}
-                            onClick={() => goToPage(pageNum)}
-                            className={`px-3 py-2 rounded-lg transition-smooth text-sm font-medium ${
-                              isActive
-                                ? darkMode
-                                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/50'
-                                  : 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
-                                : darkMode
-                                  ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                  : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
-                            }`}
-                          >
-                            {pageNum}
-                          </button>
-                        );
-                      })}
-                    </div>
+                        })}
+                      </div>
 
-                    {/* Next Button */}
-                    <button
-                      onClick={goToNextPage}
-                      disabled={!history.hasNextPage}
-                      className={`px-3 py-2 rounded-lg transition-smooth flex items-center gap-1 text-sm font-medium ${
-                        history.hasNextPage
-                          ? darkMode
-                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
-                          : darkMode
-                            ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
-                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      }`}
-                    >
-                      Next
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  </div>
+                      {/* Next Button */}
+                      <button
+                        onClick={goToNextPage}
+                        disabled={!history.hasNextPage}
+                        className={`px-3 py-2 rounded-lg transition-smooth flex items-center gap-1 text-sm font-medium ${
+                          history.hasNextPage
+                            ? darkMode
+                              ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                              : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                            : darkMode
+                              ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        Next
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={`text-xs px-3 py-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                      All {history.total} result{history.total !== 1 ? 's' : ''} shown
+                    </div>
+                  )}
                 </div>
               )}
-              </>
-            ) : null}
+        </>
+      )}
 
       {/* Modal for viewing CSV data */}
       {selectedUpload && (
@@ -755,18 +842,45 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                   {selectedUpload.totalRows} row{selectedUpload.totalRows !== 1 ? 's' : ''} imported
                 </p>
               </div>
-              <button
-                onClick={closeModal}
-                className={`p-2 rounded-lg transition-smooth ${
-                  darkMode
-                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleModalExport}
+                  disabled={exportingModal}
+                  className={`px-4 py-2 rounded-lg transition-smooth flex items-center gap-2 text-sm font-medium ${
+                    darkMode
+                      ? 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                      : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                  } ${exportingModal ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {exportingModal ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Exporting...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Export
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={closeModal}
+                  className={`p-2 rounded-lg transition-smooth ${
+                    darkMode
+                      ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <div className="flex-1 overflow-auto p-6">
               {loadingData ? (
@@ -788,18 +902,22 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                   <table className={`min-w-full divide-y ${
                     darkMode ? 'divide-gray-700' : 'divide-gray-200'
                   }`}>
-                    <thead className={`sticky top-0 ${
+                    <thead className={`sticky top-0 z-10 ${
                       darkMode ? 'bg-gray-800' : 'bg-gradient-to-r from-indigo-50 to-purple-50'
                     }`}>
                       <tr>
-                        {Object.keys(uploadData[0]).map((header) => (
+                        {uploadData.length > 0 && Object.keys(uploadData[0]).map((header) => (
                           <th
                             key={header}
-                            className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider ${
+                            onClick={() => handleModalSort(header)}
+                            className={`px-6 py-3 text-left text-xs font-bold uppercase tracking-wider cursor-pointer select-none hover:bg-opacity-80 transition-smooth ${
                               darkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}
+                            } ${modalSortConfig?.key === header ? darkMode ? 'bg-indigo-600/30' : 'bg-indigo-100' : ''}`}
                           >
-                            {header}
+                            <div className="flex items-center gap-2">
+                              <span>{header}</span>
+                              {getModalSortIcon(header)}
+                            </div>
                           </th>
                         ))}
                       </tr>
@@ -807,7 +925,7 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                     <tbody className={`divide-y ${
                       darkMode ? 'bg-gray-900/50 divide-gray-800' : 'bg-white divide-gray-200'
                     }`}>
-                      {uploadData.map((row, index) => (
+                      {paginatedModalData.map((row, index) => (
                         <tr
                           key={index}
                           className={`transition-smooth ${
@@ -838,6 +956,139 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                 </div>
               )}
             </div>
+
+            {/* Pagination Controls for Modal - Outside scrollable area */}
+            {uploadData && uploadData.length > 0 && (
+              <div className={`px-6 py-4 border-t ${
+                darkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+                <div className={`flex flex-col sm:flex-row items-center justify-between gap-4 ${
+                  darkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  {/* Page Info */}
+                  <div className="flex items-center gap-2 text-sm">
+                    <span>
+                      Showing {modalStartIndex + 1} to {Math.min(modalEndIndex, sortedModalData.length)} of {sortedModalData.length} results
+                    </span>
+                    {modalTotalPages > 1 && (
+                      <>
+                        <span className="mx-2">|</span>
+                        <span>Page {modalCurrentPage} of {modalTotalPages}</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Page Size Selector */}
+                  <div className="flex items-center gap-2">
+                    <label className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Per page:
+                    </label>
+                    <select
+                      value={modalPageSize}
+                      onChange={(e) => {
+                        setModalPageSize(Number(e.target.value));
+                        setModalCurrentPage(1);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg border text-sm transition-smooth ${
+                        darkMode
+                          ? 'bg-gray-900 border-gray-700 text-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                          : 'bg-white border-gray-300 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                      }`}
+                    >
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+
+                  {/* Pagination Buttons - Show when there are multiple pages */}
+                  {modalTotalPages > 1 ? (
+                    <div className="flex items-center gap-2">
+                      {/* Previous Button */}
+                      <button
+                        onClick={() => setModalCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={modalCurrentPage === 1}
+                        className={`px-3 py-2 rounded-lg transition-smooth flex items-center gap-1 text-sm font-medium ${
+                          modalCurrentPage > 1
+                            ? darkMode
+                              ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                              : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                            : darkMode
+                              ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Previous
+                      </button>
+
+                      {/* Page Numbers */}
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(7, modalTotalPages) }, (_, i) => {
+                          let pageNum: number;
+                          if (modalTotalPages <= 7) {
+                            pageNum = i + 1;
+                          } else if (modalCurrentPage <= 4) {
+                            pageNum = i + 1;
+                          } else if (modalCurrentPage >= modalTotalPages - 3) {
+                            pageNum = modalTotalPages - 6 + i;
+                          } else {
+                            pageNum = modalCurrentPage - 3 + i;
+                          }
+                          
+                          const isActive = pageNum === modalCurrentPage;
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setModalCurrentPage(pageNum)}
+                              className={`px-3 py-2 rounded-lg transition-smooth text-sm font-medium ${
+                                isActive
+                                  ? darkMode
+                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/50'
+                                    : 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                                  : darkMode
+                                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                    : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Next Button */}
+                      <button
+                        onClick={() => setModalCurrentPage(prev => Math.min(modalTotalPages, prev + 1))}
+                        disabled={modalCurrentPage === modalTotalPages}
+                        className={`px-3 py-2 rounded-lg transition-smooth flex items-center gap-1 text-sm font-medium ${
+                          modalCurrentPage < modalTotalPages
+                            ? darkMode
+                              ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                              : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                            : darkMode
+                              ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        Next
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={`text-xs px-3 py-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                      All {sortedModalData.length} result{sortedModalData.length !== 1 ? 's' : ''} shown
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

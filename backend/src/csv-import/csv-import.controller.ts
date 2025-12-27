@@ -15,6 +15,7 @@ import {
   Controller,
   Post,
   Get,
+  Delete,
   UseInterceptors,
   UploadedFile,
   BadRequestException,
@@ -23,7 +24,10 @@ import {
   Query,
   Param,
   NotFoundException,
+  Body,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -122,38 +126,56 @@ export class CsvImportController {
       // csvImportService.parseCsv() converts the file buffer into structured data
       const result = await this.csvImportService.parseCsv(file.buffer);
 
-      // Step 3: Update upload record with SUCCESS status and store CSV data
+      // Step 3: Store original file buffer for download later
+      await this.uploadHistoryService.storeOriginalFile(
+        uploadRecord.id,
+        file.buffer,
+      );
+
+      // Step 4: Prepare error messages with row numbers
+      const errorMessages = result.errors.length > 0
+        ? result.errors.map((err) => `Row ${err.row}: ${err.message}`)
+        : [];
+
+      // Step 5: Update upload record with SUCCESS status and store CSV data
       await this.uploadHistoryService.updateUploadStatus(
         uploadRecord.id,
         UploadStatus.SUCCESS,
         {
-          totalRows: result.length,
-          message: 'CSV file imported successfully',
-          csvData: result, // Store the parsed CSV data in database
+          totalRows: result.data.length,
+          message: result.errors.length > 0
+            ? `CSV file imported with ${result.errors.length} warning(s)`
+            : 'CSV file imported successfully',
+          csvData: result.data, // Store the parsed CSV data in database
+          errors: errorMessages.length > 0 ? errorMessages : undefined,
         },
       );
 
-      // Step 4: Return success response with parsed data
+      // Step 6: Return success response with parsed data
       return {
         success: true,
-        message: 'CSV file imported successfully',
-        data: result,
-        totalRows: result.length,
+        message: result.errors.length > 0
+          ? `CSV file imported with ${result.errors.length} warning(s)`
+          : 'CSV file imported successfully',
+        data: result.data,
+        totalRows: result.data.length,
         uploadId: uploadRecord.id, // Return ID so client can track this upload
+        warnings: result.errors.length > 0 ? result.errors : undefined,
       };
     } catch (error) {
       // If parsing fails, update record with FAILED status
+      const errorMessage = error instanceof Error ? error.message : String(error);
       await this.uploadHistoryService.updateUploadStatus(
         uploadRecord.id,
         UploadStatus.FAILED,
         {
-          errors: [error.message],
-          message: `Failed to parse CSV: ${error.message}`,
+          errors: [errorMessage],
+          message: `Failed to parse CSV: ${errorMessage}`,
         },
       );
 
       // Throw error to return error response to client
-      throw new BadRequestException(`Failed to parse CSV: ${error.message}`);
+      throw new BadRequestException(`Failed to parse CSV: ${errorMessage}`);
     }
   }
 
@@ -396,6 +418,111 @@ export class CsvImportController {
       fileName: upload.fileName,
       totalRows: upload.totalRows,
       data: upload.data, // The actual parsed CSV data
+    };
+  }
+
+  /**
+   * GET /csv-import/history/:id/download
+   * Downloads the original CSV file
+   */
+  @Get('history/:id/download')
+  @ApiOperation({
+    summary: 'Download original CSV file',
+    description: 'Downloads the original CSV file that was uploaded.',
+  })
+  @ApiParam({ name: 'id', description: 'Upload record ID' })
+  @ApiResponse({ status: 200, description: 'File downloaded successfully' })
+  @ApiResponse({ status: 404, description: 'Upload record or file not found' })
+  async downloadOriginalFile(@Param('id') id: string, @Res() res: Response) {
+    const upload = await this.uploadHistoryService.getUploadById(id);
+    if (!upload) {
+      throw new NotFoundException('Upload record not found');
+    }
+
+    const fileBuffer = await this.uploadHistoryService.getOriginalFile(id);
+    if (!fileBuffer) {
+      throw new NotFoundException('Original file not found');
+    }
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${upload.fileName}"`,
+    );
+    res.send(fileBuffer);
+  }
+
+  /**
+   * POST /csv-import/history/export
+   * Exports CSV data to a downloadable CSV file
+   */
+  @Post('history/export')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Export CSV data',
+    description: 'Exports CSV data from an upload to a downloadable CSV file.',
+  })
+  @ApiResponse({ status: 200, description: 'CSV file exported successfully' })
+  async exportCsvData(@Body('uploadId') uploadId: string, @Res() res: Response) {
+    const upload = await this.uploadHistoryService.getUploadById(uploadId);
+    if (!upload) {
+      throw new NotFoundException('Upload record not found');
+    }
+
+    if (upload.status !== UploadStatus.SUCCESS || !upload.data) {
+      throw new BadRequestException('CSV data is only available for successful uploads');
+    }
+
+    // Convert data to CSV format
+    const headers = upload.data.length > 0 ? Object.keys(upload.data[0]) : [];
+    const csvRows = [
+      headers.join(','), // Header row
+      ...upload.data.map((row) =>
+        headers.map((header) => {
+          const value = row[header] || '';
+          // Escape commas and quotes in CSV
+          if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+            return `"${value.replace(/"/g, '""')}"`;
+          }
+          return value;
+        }).join(','),
+      ),
+    ];
+
+    const csvContent = csvRows.join('\n');
+    const csvBuffer = Buffer.from(csvContent, 'utf-8');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="export_${upload.fileName}"`,
+    );
+    res.send(csvBuffer);
+  }
+
+  /**
+   * DELETE /csv-import/history/bulk
+   * Deletes multiple upload records
+   */
+  @Delete('history/bulk')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Bulk delete uploads',
+    description: 'Deletes multiple upload records by their IDs.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Uploads deleted successfully',
+  })
+  async bulkDelete(@Body('ids') ids: string[]) {
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('ids array is required and must not be empty');
+    }
+
+    const deletedCount = await this.uploadHistoryService.deleteUploads(ids);
+    return {
+      deleted: deletedCount,
+      message: `Successfully deleted ${deletedCount} upload(s)`,
     };
   }
 }

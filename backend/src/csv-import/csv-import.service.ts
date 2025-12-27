@@ -36,18 +36,34 @@ export class CsvImportService {
    * 3. Convert to array of objects (first row becomes keys)
    * 4. Return parsed data
    */
-  async parseCsv(fileBuffer: Buffer): Promise<CsvRow[]> {
+  async parseCsv(fileBuffer: Buffer): Promise<{
+    data: CsvRow[];
+    errors: Array<{ row: number; message: string }>;
+  }> {
     try {
+      const csvContent = fileBuffer.toString('utf-8');
+      const errors: Array<{ row: number; message: string }> = [];
+
       // Parse CSV file
-      // - columns: true - Use first row as column names
-      // - skip_empty_lines: true - Ignore empty lines
-      // - trim: true - Remove whitespace from values
-      // - bom: true - Handle Byte Order Mark (for Excel files)
-      const records = parse(fileBuffer.toString('utf-8'), {
+      const records = parse(csvContent, {
         columns: true,
         skip_empty_lines: true,
         trim: true,
         bom: true,
+        relax_column_count: true,
+        on_record: (record, context) => {
+          // Track row numbers (context.lines is 0-indexed, add 2 for header row)
+          const rowNumber = context.lines + 2;
+          
+          // Check for empty rows
+          const values = Object.values(record);
+          if (values.every((val) => !val || String(val).trim() === '')) {
+            errors.push({
+              row: rowNumber,
+              message: 'Row contains only empty values',
+            });
+          }
+        },
       });
 
       // Validation: Check if parsing resulted in any data
@@ -55,10 +71,11 @@ export class CsvImportService {
         throw new Error('CSV file is empty or has no valid data');
       }
 
-      return records;
+      return { data: records, errors };
     } catch (error) {
-      // Wrap error with more context
-      throw new Error(`CSV parsing failed: ${error.message}`);
+      // Enhanced error message with row context if available
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`CSV parsing failed: ${errorMessage}`);
     }
   }
 

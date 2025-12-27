@@ -114,4 +114,13 @@ export class UploadRecordEntity {
    */
   @Column({ type: 'jsonb', nullable: true })
   data?: Record<string, string>[]; // CSV data stored as JSONB
+
+  /**
+   * Original File Column
+   * Stores the original CSV file content as binary data.
+   * This allows users to download the original file.
+   * Nullable, as it's optional and can be large.
+   */
+  @Column({ type: 'bytea', nullable: true })
+  originalFile?: Buffer; // Original file content for download
 }

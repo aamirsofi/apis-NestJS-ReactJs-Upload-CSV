@@ -4,4 +4,5 @@ export class CsvImportResponseDto {
   data: any[];
   totalRows: number;
   uploadId?: string;
+  warnings?: Array<{ row: number; message: string }>;
 }

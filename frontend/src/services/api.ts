@@ -105,5 +105,64 @@ export const getUploadData = async (id: string): Promise<UploadDataResponse> => 
   }
 };
 
+export const downloadOriginalFile = async (id: string, fileName: string): Promise<void> => {
+  try {
+    const response = await api.get(`/csv-import/history/${id}/download`, {
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message || 'Failed to download file';
+      throw new Error(message);
+    }
+    throw new Error('An unexpected error occurred');
+  }
+};
+
+export const exportCsvData = async (uploadId: string, fileName: string): Promise<void> => {
+  try {
+    const response = await api.post(
+      '/csv-import/history/export',
+      { uploadId },
+      { responseType: 'blob' },
+    );
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `export_${fileName}`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message || 'Failed to export CSV';
+      throw new Error(message);
+    }
+    throw new Error('An unexpected error occurred');
+  }
+};
+
+export const bulkDeleteUploads = async (ids: string[]): Promise<{ deleted: number; message: string }> => {
+  try {
+    const response = await api.delete('/csv-import/history/bulk', { data: { ids } });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message || 'Failed to delete uploads';
+      throw new Error(message);
+    }
+    throw new Error('An unexpected error occurred');
+  }
+};
+
 export default api;
 
