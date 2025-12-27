@@ -5,6 +5,7 @@
 **NestJS** is a Node.js framework for building server-side applications (APIs). Think of it like Express.js but with more structure and organization.
 
 ### Key Features:
+
 - 🏗️ **Modular Architecture** - Code organized into modules
 - 🔧 **TypeScript** - Type-safe code (catches errors before runtime)
 - 🎯 **Decorators** - Special annotations that add functionality
@@ -16,36 +17,40 @@
 ## Core Concepts
 
 ### 1. **Modules** (`@Module`)
+
 A module is like a container that groups related code together.
 
 **Example:**
+
 ```typescript
 @Module({
-  imports: [OtherModules],      // What this module needs
-  controllers: [MyController],   // Handles HTTP requests
-  providers: [MyService],        // Business logic
+  imports: [OtherModules], // What this module needs
+  controllers: [MyController], // Handles HTTP requests
+  providers: [MyService], // Business logic
 })
 export class MyModule {}
 ```
 
 **In our project:**
+
 - `AppModule` - Root module (ties everything together)
 - `CsvImportModule` - Handles CSV-related features
 
 ### 2. **Controllers** (`@Controller`)
+
 Controllers handle HTTP requests and responses. They're like the "receptionist" of your API.
 
 **Example:**
+
 ```typescript
-@Controller('csv-import')  // Base route: /csv-import
+@Controller('csv-import') // Base route: /csv-import
 export class CsvImportController {
-  
-  @Post('upload')  // POST /csv-import/upload
+  @Post('upload') // POST /csv-import/upload
   async uploadFile() {
     // Handle file upload
   }
-  
-  @Get('history')  // GET /csv-import/history
+
+  @Get('history') // GET /csv-import/history
   async getHistory() {
     // Return history
   }
@@ -53,14 +58,17 @@ export class CsvImportController {
 ```
 
 **What it does:**
+
 - Receives HTTP requests (GET, POST, etc.)
 - Calls services to do the work
 - Returns responses to the client
 
 ### 3. **Services** (`@Injectable`)
+
 Services contain business logic - the actual work your application does.
 
 **Example:**
+
 ```typescript
 @Injectable()
 export class CsvImportService {
@@ -72,26 +80,30 @@ export class CsvImportService {
 ```
 
 **What it does:**
+
 - Contains reusable business logic
 - Can be used by multiple controllers
 - Handles data processing
 
 ### 4. **Entities** (Database Models)
+
 Entities represent database tables. They define the structure of your data.
 
 **Example:**
+
 ```typescript
-@Entity('upload_records')  // Table name
+@Entity('upload_records') // Table name
 export class UploadRecordEntity {
   @PrimaryGeneratedColumn('uuid')
-  id: string;  // Auto-generated ID
-  
+  id: string; // Auto-generated ID
+
   @Column()
-  fileName: string;  // Column in database
+  fileName: string; // Column in database
 }
 ```
 
 **What it does:**
+
 - Maps TypeScript classes to database tables
 - Defines columns and their types
 - Used by TypeORM to create/manage database
@@ -127,12 +139,14 @@ backend/src/
 ### Example: Uploading a CSV File
 
 **1. Request Arrives**
+
 ```
 POST http://localhost:3000/csv-import/upload
 Body: CSV file
 ```
 
 **2. Controller Receives Request**
+
 ```typescript
 // csv-import.controller.ts
 @Post('upload')
@@ -142,12 +156,14 @@ async uploadCsv(@UploadedFile() file) {
 ```
 
 **3. Controller Calls Service**
+
 ```typescript
 // Controller calls service to parse CSV
 const result = await this.csvImportService.parseCsv(file.buffer);
 ```
 
 **4. Service Does the Work**
+
 ```typescript
 // csv-import.service.ts
 async parseCsv(fileBuffer: Buffer) {
@@ -158,6 +174,7 @@ async parseCsv(fileBuffer: Buffer) {
 ```
 
 **5. Save to Database**
+
 ```typescript
 // Controller calls history service
 await this.uploadHistoryService.createUploadRecord(...);
@@ -165,11 +182,12 @@ await this.uploadHistoryService.updateUploadStatus(...);
 ```
 
 **6. Return Response**
+
 ```typescript
 return {
   success: true,
   data: result,
-  uploadId: '...'
+  uploadId: '...',
 };
 ```
 
@@ -178,6 +196,7 @@ return {
 ## Key Decorators Explained
 
 ### `@Module()`
+
 Groups related code together.
 
 ```typescript
@@ -189,6 +208,7 @@ Groups related code together.
 ```
 
 ### `@Controller('route')`
+
 Creates HTTP endpoints.
 
 ```typescript
@@ -200,6 +220,7 @@ export class CsvImportController {
 ```
 
 ### `@Injectable()`
+
 Makes a class available for dependency injection.
 
 ```typescript
@@ -210,6 +231,7 @@ export class MyService {
 ```
 
 ### `@InjectRepository()`
+
 Injects database repository for database operations.
 
 ```typescript
@@ -227,6 +249,7 @@ constructor(
 A way to automatically provide dependencies to classes.
 
 **Example:**
+
 ```typescript
 // Service
 @Injectable()
@@ -240,7 +263,7 @@ export class CsvImportController {
   constructor(
     private csvImportService: CsvImportService  // Automatically injected!
   ) {}
-  
+
   @Post('upload')
   async upload() {
     // Use the service
@@ -250,6 +273,7 @@ export class CsvImportController {
 ```
 
 **Benefits:**
+
 - ✅ No need to manually create instances
 - ✅ Easy to test (can mock dependencies)
 - ✅ Loose coupling between components
@@ -259,23 +283,26 @@ export class CsvImportController {
 ## Database Integration (TypeORM)
 
 ### What is TypeORM?
+
 An Object-Relational Mapping (ORM) tool that lets you work with databases using TypeScript classes instead of SQL.
 
 ### How We Use It:
 
 **1. Define Entity (Database Table)**
+
 ```typescript
 @Entity('upload_records')
 export class UploadRecordEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
-  
+
   @Column()
   fileName: string;
 }
 ```
 
 **2. Configure Connection**
+
 ```typescript
 // app.module.ts
 TypeOrmModule.forRootAsync({
@@ -283,10 +310,11 @@ TypeOrmModule.forRootAsync({
   host: 'localhost',
   database: 'csv_import',
   // ...
-})
+});
 ```
 
 **3. Use Repository**
+
 ```typescript
 // upload-history.service.ts
 constructor(
@@ -352,21 +380,24 @@ async getAllUploads() {
 ## Our Project's Architecture
 
 ### 1. **main.ts** - Application Bootstrap
+
 ```typescript
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.enableCors();  // Allow frontend to connect
-  app.listen(3000);  // Start server on port 3000
+  app.enableCors(); // Allow frontend to connect
+  app.listen(3000); // Start server on port 3000
 }
 ```
 
 **What it does:**
+
 - Creates the NestJS application
 - Configures global settings (CORS, validation)
 - Sets up Swagger documentation
 - Starts the server
 
 ### 2. **app.module.ts** - Root Module
+
 ```typescript
 @Module({
   imports: [
@@ -378,11 +409,13 @@ async function bootstrap() {
 ```
 
 **What it does:**
+
 - Imports all modules
 - Configures database connection
 - Ties everything together
 
 ### 3. **csv-import.module.ts** - Feature Module
+
 ```typescript
 @Module({
   imports: [TypeOrmModule.forFeature([UploadRecordEntity])],
@@ -392,11 +425,13 @@ async function bootstrap() {
 ```
 
 **What it does:**
+
 - Groups CSV-related code
 - Registers controllers and services
 - Provides database repository
 
 ### 4. **csv-import.controller.ts** - HTTP Endpoints
+
 ```typescript
 @Controller('csv-import')
 export class CsvImportController {
@@ -406,11 +441,13 @@ export class CsvImportController {
 ```
 
 **What it does:**
+
 - Defines API endpoints
 - Handles HTTP requests
 - Returns responses
 
 ### 5. **csv-import.service.ts** - Business Logic
+
 ```typescript
 @Injectable()
 export class CsvImportService {
@@ -421,18 +458,20 @@ export class CsvImportService {
 ```
 
 **What it does:**
+
 - Contains CSV parsing logic
 - Reusable across the application
 
 ### 6. **upload-history.service.ts** - Database Operations
+
 ```typescript
 @Injectable()
 export class UploadHistoryService {
   constructor(
     @InjectRepository(UploadRecordEntity)
-    private uploadRepository: Repository<UploadRecordEntity>
+    private uploadRepository: Repository<UploadRecordEntity>,
   ) {}
-  
+
   async getAllUploads() {
     return await this.uploadRepository.find();
   }
@@ -440,6 +479,7 @@ export class UploadHistoryService {
 ```
 
 **What it does:**
+
 - Manages database operations
 - Saves/retrieves upload records
 - Handles data persistence
@@ -502,14 +542,14 @@ async upload() { ... }
 
 ## Quick Reference
 
-| Concept | Purpose | Example |
-|---------|---------|---------|
-| **Module** | Groups related code | `@Module({...})` |
+| Concept        | Purpose               | Example                |
+| -------------- | --------------------- | ---------------------- |
+| **Module**     | Groups related code   | `@Module({...})`       |
 | **Controller** | Handles HTTP requests | `@Controller('route')` |
-| **Service** | Business logic | `@Injectable()` |
-| **Entity** | Database model | `@Entity('table')` |
-| **Repository** | Database operations | `repository.find()` |
-| **DTO** | Data structure | `class ResponseDto` |
+| **Service**    | Business logic        | `@Injectable()`        |
+| **Entity**     | Database model        | `@Entity('table')`     |
+| **Repository** | Database operations   | `repository.find()`    |
+| **DTO**        | Data structure        | `class ResponseDto`    |
 
 ---
 
@@ -526,6 +566,7 @@ async upload() { ... }
 **NestJS** = Structured way to build APIs
 
 **Our Project:**
+
 1. Receives CSV file uploads
 2. Parses CSV data
 3. Saves to PostgreSQL database
@@ -536,4 +577,3 @@ async upload() { ... }
 Request → Controller → Service → Database → Response
 
 Everything is organized into modules, making it easy to understand and maintain! 🚀
-

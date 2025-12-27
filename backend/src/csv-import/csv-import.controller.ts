@@ -1,3 +1,16 @@
+/**
+ * csv-import.controller.ts - CSV Import Controller
+ *
+ * This controller handles all HTTP requests related to CSV file operations.
+ * It acts as the "receptionist" - receives requests, delegates work to services, and returns responses.
+ *
+ * Responsibilities:
+ * - Handle file uploads (POST /csv-import/upload)
+ * - Retrieve upload history (GET /csv-import/history)
+ * - Get specific upload details (GET /csv-import/history/:id)
+ * - Get CSV data for successful uploads (GET /csv-import/history/:id/data)
+ */
+
 import {
   Controller,
   Post,
@@ -28,23 +41,41 @@ import { CsvImportResponseDto } from './dto/csv-import-response.dto';
 import { UploadHistoryResponseDto } from './dto/upload-history-response.dto';
 import { UploadStatus } from './interfaces/upload-status.enum';
 
-@ApiTags('csv-import')
-@Controller('csv-import')
+@ApiTags('csv-import') // Groups endpoints in Swagger docs
+@Controller('csv-import') // Base route: all endpoints start with /csv-import
 export class CsvImportController {
+  /**
+   * Dependency Injection
+   * NestJS automatically provides these services when the controller is created
+   * - csvImportService: Handles CSV parsing logic
+   * - uploadHistoryService: Manages upload records in database
+   */
   constructor(
     private readonly csvImportService: CsvImportService,
     private readonly uploadHistoryService: UploadHistoryService,
   ) {}
 
-  @Post('upload')
-  @HttpCode(HttpStatus.OK)
-  @UseInterceptors(FileInterceptor('file'))
+  /**
+   * POST /csv-import/upload
+   * Uploads and parses a CSV file
+   *
+   * Flow:
+   * 1. Receives uploaded file
+   * 2. Validates file type (must be .csv)
+   * 3. Creates upload record in database (status: PROCESSING)
+   * 4. Parses CSV file
+   * 5. Updates record with success/failure status
+   * 6. Returns parsed data or error
+   */
+  @Post('upload') // Handles POST requests to /csv-import/upload
+  @HttpCode(HttpStatus.OK) // Returns 200 status code (default for POST is 201)
+  @UseInterceptors(FileInterceptor('file')) // Intercepts file upload, extracts file from 'file' field
   @ApiOperation({
     summary: 'Upload and parse a CSV file',
     description:
       'Uploads a CSV file, parses it, and returns the parsed data. The upload is tracked in history with a unique ID.',
   })
-  @ApiConsumes('multipart/form-data')
+  @ApiConsumes('multipart/form-data') // Swagger: expects multipart form data
   @ApiBody({
     schema: {
       type: 'object',
@@ -67,45 +98,51 @@ export class CsvImportController {
     description: 'Bad request - Invalid file or parsing error',
   })
   async uploadCsv(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File, // Extracts uploaded file from request
   ): Promise<CsvImportResponseDto> {
+    // Validation: Check if file was uploaded
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
 
+    // Validation: Check if file is CSV format
     if (!file.originalname.match(/\.(csv)$/)) {
       throw new BadRequestException('Only CSV files are allowed');
     }
 
-    // Create upload record
+    // Step 1: Create upload record in database with PROCESSING status
+    // This tracks the upload even if parsing fails
     const uploadRecord = await this.uploadHistoryService.createUploadRecord(
       file.originalname,
       file.size,
     );
 
     try {
+      // Step 2: Parse the CSV file
+      // csvImportService.parseCsv() converts the file buffer into structured data
       const result = await this.csvImportService.parseCsv(file.buffer);
 
-      // Update upload record with success and store CSV data
+      // Step 3: Update upload record with SUCCESS status and store CSV data
       await this.uploadHistoryService.updateUploadStatus(
         uploadRecord.id,
         UploadStatus.SUCCESS,
         {
           totalRows: result.length,
           message: 'CSV file imported successfully',
-          csvData: result, // Store the parsed CSV data
+          csvData: result, // Store the parsed CSV data in database
         },
       );
 
+      // Step 4: Return success response with parsed data
       return {
         success: true,
         message: 'CSV file imported successfully',
         data: result,
         totalRows: result.length,
-        uploadId: uploadRecord.id,
+        uploadId: uploadRecord.id, // Return ID so client can track this upload
       };
     } catch (error) {
-      // Update upload record with failure
+      // If parsing fails, update record with FAILED status
       await this.uploadHistoryService.updateUploadStatus(
         uploadRecord.id,
         UploadStatus.FAILED,
@@ -115,11 +152,24 @@ export class CsvImportController {
         },
       );
 
+      // Throw error to return error response to client
       throw new BadRequestException(`Failed to parse CSV: ${error.message}`);
     }
   }
 
-  @Get('history')
+  /**
+   * GET /csv-import/history
+   * Retrieves upload history with optional status filtering
+   *
+   * Query Parameters:
+   * - status (optional): Filter by 'success', 'failed', or 'processing'
+   *
+   * Returns:
+   * - List of all uploads (or filtered by status)
+   * - Statistics: total, success count, failed count, processing count
+   * - Results sorted: success first, then processing, then failed
+   */
+  @Get('history') // Handles GET requests to /csv-import/history
   @ApiOperation({
     summary: 'Get upload history',
     description:
@@ -137,15 +187,17 @@ export class CsvImportController {
     type: UploadHistoryResponseDto,
   })
   async getUploadHistory(
-    @Query('status') status?: UploadStatus,
+    @Query('status') status?: UploadStatus, // Optional query parameter: ?status=success
   ): Promise<UploadHistoryResponseDto> {
+    // Get all uploads from database (sorted: success → processing → failed)
     let uploads = await this.uploadHistoryService.getAllUploads();
 
-    // Filter by status if provided
+    // If status filter is provided, filter the results
     if (status && Object.values(UploadStatus).includes(status)) {
       uploads = await this.uploadHistoryService.getUploadsByStatus(status);
     }
 
+    // Calculate statistics for the response
     const success = uploads.filter(
       (u) => u.status === UploadStatus.SUCCESS,
     ).length;
@@ -156,6 +208,7 @@ export class CsvImportController {
       (u) => u.status === UploadStatus.PROCESSING,
     ).length;
 
+    // Return uploads with statistics
     return {
       uploads,
       total: uploads.length,
@@ -165,7 +218,18 @@ export class CsvImportController {
     };
   }
 
-  @Get('history/:id')
+  /**
+   * GET /csv-import/history/:id
+   * Gets detailed information about a specific upload record
+   *
+   * Path Parameter:
+   * - id: The unique ID of the upload record
+   *
+   * Returns:
+   * - Upload record details (filename, status, dates, errors, etc.)
+   * - Does NOT include CSV data (use /history/:id/data for that)
+   */
+  @Get('history/:id') // Handles GET requests to /csv-import/history/:id
   @ApiOperation({
     summary: 'Get upload details by ID',
     description:
@@ -185,6 +249,7 @@ export class CsvImportController {
     description: 'Upload record not found',
   })
   async getUploadById(@Param('id') id: string) {
+    // Find upload record by ID in database
     const upload = await this.uploadHistoryService.getUploadById(id);
     if (!upload) {
       throw new NotFoundException('Upload record not found');
@@ -192,7 +257,22 @@ export class CsvImportController {
     return upload;
   }
 
-  @Get('history/:id/data')
+  /**
+   * GET /csv-import/history/:id/data
+   * Gets the parsed CSV data for a successful upload
+   *
+   * Path Parameter:
+   * - id: The unique ID of the upload record
+   *
+   * Requirements:
+   * - Upload must have status 'success'
+   * - CSV data must exist in the record
+   *
+   * Returns:
+   * - The actual CSV data that was parsed and stored
+   * - Useful for viewing what was imported
+   */
+  @Get('history/:id/data') // Handles GET requests to /csv-import/history/:id/data
   @ApiOperation({
     summary: 'Get CSV data for a successful upload',
     description:
@@ -216,26 +296,30 @@ export class CsvImportController {
     description: 'Upload record or CSV data not found',
   })
   async getUploadData(@Param('id') id: string) {
+    // Get upload record from database
     const upload = await this.uploadHistoryService.getUploadById(id);
     if (!upload) {
       throw new NotFoundException('Upload record not found');
     }
 
+    // Validation: Only successful uploads have CSV data
     if (upload.status !== UploadStatus.SUCCESS) {
       throw new BadRequestException(
         'CSV data is only available for successful uploads',
       );
     }
 
+    // Validation: Check if CSV data exists
     if (!upload.data) {
       throw new NotFoundException('CSV data not found for this upload');
     }
 
+    // Return CSV data with metadata
     return {
       uploadId: upload.id,
       fileName: upload.fileName,
       totalRows: upload.totalRows,
-      data: upload.data,
+      data: upload.data, // The actual parsed CSV data
     };
   }
 }
