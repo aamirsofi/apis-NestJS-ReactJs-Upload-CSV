@@ -3,6 +3,7 @@ import { UploadHistoryResponse, UploadRecord, UploadStatus, CsvRow } from '../ty
 import { getUploadHistory, getUploadData, UploadHistoryFilters, downloadOriginalFile, bulkDeleteUploads, exportCsvData } from '../services/api';
 import CustomDropdown from './CustomDropdown';
 import CustomDatePicker from './CustomDatePicker';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 interface UploadHistoryProps {
   onUploadClick?: (upload: UploadRecord) => void;
@@ -271,6 +272,15 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
     setModalCurrentPage(1);
     setModalPageSize(10);
   };
+
+  // Keyboard shortcut: Esc to close modal
+  useKeyboardShortcuts({
+    onCloseModal: () => {
+      if (selectedUpload) {
+        closeModal();
+      }
+    },
+  });
 
   // Modal data sorting and pagination
   const sortedModalData = useMemo(() => {
@@ -822,24 +832,25 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
       {selectedUpload && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className={`card-modern${darkMode ? '-dark' : ''} rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col transition-smooth`}>
-            <div className={`flex justify-between items-center p-6 border-b ${
+            <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 border-b ${
               darkMode ? 'border-gray-700' : 'border-gray-200'
             }`}>
-              <div>
-                <h3 className={`text-2xl font-bold ${
+              <div className="flex-1 min-w-0 pr-4">
+                <h3 className={`text-lg sm:text-xl md:text-2xl font-bold break-words ${
                   darkMode ? 'text-gray-100' : 'text-gray-800'
-                }`}>
-                  CSV Data: {selectedUpload.fileName}
+                }`} title={selectedUpload.fileName}>
+                  <span className="text-sm sm:text-base font-normal opacity-75">CSV Data:</span>{' '}
+                  <span className="break-all">{selectedUpload.fileName}</span>
                 </h3>
-                <p className={`mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                <p className={`mt-1 text-sm sm:text-base ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   {selectedUpload.totalRows} row{selectedUpload.totalRows !== 1 ? 's' : ''} imported
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 w-full sm:w-auto justify-end">
                 <button
                   onClick={handleModalExport}
                   disabled={exportingModal}
-                  className={`px-4 py-2 rounded-lg transition-smooth flex items-center gap-2 text-sm font-medium ${
+                  className={`px-3 sm:px-4 py-2 rounded-xl transition-smooth flex items-center gap-2 text-xs sm:text-sm font-medium whitespace-nowrap ${
                     darkMode
                       ? 'bg-gray-700 text-gray-200 hover:bg-gray-600'
                       : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
@@ -863,6 +874,7 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                 </button>
                 <button
                   onClick={closeModal}
+                  title="Close (Esc)"
                   className={`p-2 rounded-lg transition-smooth ${
                     darkMode
                       ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'

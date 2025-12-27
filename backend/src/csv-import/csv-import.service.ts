@@ -41,8 +41,15 @@ export class CsvImportService {
     errors: Array<{ row: number; message: string }>;
   }> {
     try {
-      const csvContent = fileBuffer.toString('utf-8');
+      const csvContent = fileBuffer.toString('utf-8').trim();
+      
+      // Check if file is empty
+      if (!csvContent || csvContent.length === 0) {
+        throw new Error('CSV file is empty');
+      }
+
       const errors: Array<{ row: number; message: string }> = [];
+      let validRecords: CsvRow[] = [];
 
       // Parse CSV file
       const records = parse(csvContent, {
@@ -57,21 +64,35 @@ export class CsvImportService {
           
           // Check for empty rows
           const values = Object.values(record);
-          if (values.every((val) => !val || String(val).trim() === '')) {
+          const isEmptyRow = values.every((val) => !val || String(val).trim() === '');
+          
+          if (isEmptyRow) {
             errors.push({
               row: rowNumber,
               message: 'Row contains only empty values',
             });
+            return null; // Skip this row
           }
+          
+          // Return the record to include it
+          return record;
         },
       });
 
-      // Validation: Check if parsing resulted in any data
-      if (!records || records.length === 0) {
-        throw new Error('CSV file is empty or has no valid data');
+      // Filter out null records (skipped empty rows)
+      validRecords = records.filter((record): record is CsvRow => record !== null && record !== undefined);
+
+      // Validation: Check if parsing resulted in any valid data
+      if (!validRecords || validRecords.length === 0) {
+        // Check if we have a header but no data
+        const lines = csvContent.split('\n').filter(line => line.trim().length > 0);
+        if (lines.length === 1) {
+          throw new Error('CSV file contains only a header row with no data rows');
+        }
+        throw new Error('CSV file contains no valid data rows (all rows are empty)');
       }
 
-      return { data: records, errors };
+      return { data: validRecords, errors };
     } catch (error) {
       // Enhanced error message with row context if available
       const errorMessage = error instanceof Error ? error.message : String(error);

@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { uploadCsv } from '../services/api';
 import { CsvData } from '../types';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 interface CsvUploaderProps {
   onUploadSuccess: (data: CsvData) => void;
@@ -54,7 +55,7 @@ const CsvUploader: React.FC<CsvUploaderProps> = ({
     [onUploadSuccess, onUploadError, onLoadingChange, isUploading, loading]
   );
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
     accept: {
       'text/csv': ['.csv'],
@@ -62,6 +63,15 @@ const CsvUploader: React.FC<CsvUploaderProps> = ({
     multiple: false,
     disabled: loading || isUploading,
     noClick: loading || isUploading,
+  });
+
+  // Keyboard shortcut: Ctrl+U to trigger file upload
+  useKeyboardShortcuts({
+    onUpload: () => {
+      if (!isUploading && !loading) {
+        open();
+      }
+    },
   });
 
   return (
@@ -152,6 +162,11 @@ const CsvUploader: React.FC<CsvUploaderProps> = ({
               </button>
               <p className={`text-sm mt-6 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                 Only CSV files are supported • Max file size: 10MB
+              </p>
+              <p className={`text-xs mt-2 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                Press <kbd className={`px-1.5 py-0.5 rounded text-xs font-mono ${
+                  darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
+                }`}>Ctrl+U</kbd> to upload
               </p>
             </>
           )}
