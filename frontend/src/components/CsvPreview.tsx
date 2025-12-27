@@ -100,24 +100,24 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset, darkMode = false
       <div className="flex justify-between items-center mb-6">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <div className={`p-3 rounded-xl transition-smooth hover:scale-110 ${
+            <div className={`p-3 rounded-xl transition-smooth ${
               darkMode 
-                ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20' 
-                : 'bg-gradient-to-br from-green-100 to-emerald-100'
+                ? 'bg-gradient-to-br from-indigo-500/20 via-purple-500/20 to-pink-500/20' 
+                : 'bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100'
             }`}>
-              {/* Modern checkmark icon - filled style for better visibility */}
-              <svg className={`w-7 h-7 ${darkMode ? 'text-green-400' : 'text-green-600'}`} fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              {/* CSV file icon */}
+              <svg className={`w-7 h-7 ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
             <h2 className={`text-3xl font-bold ${
               darkMode ? 'text-gray-100' : 'text-gray-800'
             }`}>
-              CSV Import Successful!
+              CSV Data Preview
             </h2>
           </div>
           <p className={`text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            {data.totalRows} row{data.totalRows !== 1 ? "s" : ""} imported successfully
+            {data.totalRows} row{data.totalRows !== 1 ? "s" : ""} imported
           </p>
         </div>
         <div className="flex gap-3">
@@ -160,23 +160,6 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset, darkMode = false
           </button>
         </div>
       </div>
-
-      {/* Success Message */}
-          <div className={`mb-6 p-5 rounded-xl border-l-4 transition-smooth hover:shadow-lg ${
-            darkMode
-              ? 'bg-green-500/10 border-green-400'
-              : 'bg-green-50 border-green-400'
-          }`}>
-            <div className="flex items-center gap-3">
-              {/* Modern filled checkmark circle icon */}
-              <svg className={`w-6 h-6 flex-shrink-0 ${darkMode ? 'text-green-400' : 'text-green-600'}`} fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <p className={`font-semibold ${darkMode ? 'text-green-300' : 'text-green-800'}`}>
-                {data.message}
-              </p>
-            </div>
-          </div>
 
       {/* Performance Mode Toggle */}
       {shouldUseVirtualization && (

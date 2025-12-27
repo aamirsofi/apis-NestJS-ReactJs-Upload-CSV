@@ -4,6 +4,7 @@ import { uploadCsv } from '../services/api';
 import { CsvData } from '../types';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useToast } from '../contexts/ToastContext';
+import PreviewModal from './PreviewModal';
 
 interface CsvUploaderProps {
   onUploadSuccess: (data: CsvData) => void;
@@ -22,7 +23,78 @@ const CsvUploader: React.FC<CsvUploaderProps> = ({
 }) => {
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [previewData, setPreviewData] = useState<Record<string, string>[]>([]);
+  const [previewColumns, setPreviewColumns] = useState<string[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
   const { showSuccess, showError } = useToast();
+
+  // Parse CSV file for preview
+  const parseCsvPreview = useCallback((file: File): Promise<{ data: Record<string, string>[]; columns: string[] }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const text = e.target?.result as string;
+          const lines = text.split('\n').filter(line => line.trim());
+          
+          if (lines.length === 0) {
+            reject(new Error('CSV file is empty'));
+            return;
+          }
+
+          // Parse header
+          const headerLine = lines[0];
+          const headers = headerLine.split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+          
+          // Parse data rows (limit to first 10 rows for preview)
+          const previewRows = Math.min(10, lines.length - 1);
+          const data: Record<string, string>[] = [];
+          
+          for (let i = 1; i <= previewRows; i++) {
+            const line = lines[i];
+            if (!line.trim()) continue;
+            
+            // Simple CSV parsing (handles quoted values)
+            const values: string[] = [];
+            let currentValue = '';
+            let inQuotes = false;
+            
+            for (let j = 0; j < line.length; j++) {
+              const char = line[j];
+              
+              if (char === '"') {
+                inQuotes = !inQuotes;
+              } else if (char === ',' && !inQuotes) {
+                values.push(currentValue.trim());
+                currentValue = '';
+              } else {
+                currentValue += char;
+              }
+            }
+            values.push(currentValue.trim()); // Add last value
+            
+            const row: Record<string, string> = {};
+            headers.forEach((header, index) => {
+              row[header] = values[index] || '';
+            });
+            data.push(row);
+          }
+          
+          resolve({ data, columns: headers });
+        } catch (error) {
+          reject(new Error('Failed to parse CSV file'));
+        }
+      };
+      
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+      
+      reader.readAsText(file);
+    });
+  }, []);
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -41,23 +113,54 @@ const CsvUploader: React.FC<CsvUploaderProps> = ({
         return;
       }
 
-      setIsUploading(true);
-      onLoadingChange(true);
+      // Parse CSV for preview
       try {
-        const result = await uploadCsv(file);
-        showSuccess(`CSV file "${file.name}" uploaded successfully! ${result.totalRows} rows imported.`);
-        onUploadSuccess(result);
+        const { data, columns } = await parseCsvPreview(file);
+        setPreviewFile(file);
+        setPreviewData(data);
+        setPreviewColumns(columns);
+        setShowPreview(true);
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to upload CSV file';
+        const errorMessage = error instanceof Error ? error.message : 'Failed to parse CSV file';
         showError(errorMessage);
         onUploadError(errorMessage);
-      } finally {
-        setIsUploading(false);
-        onLoadingChange(false);
       }
     },
-    [onUploadSuccess, onUploadError, onLoadingChange, isUploading, loading]
+    [isUploading, loading, parseCsvPreview, showError, onUploadError]
   );
+
+  // Handle confirmed upload
+  const handleConfirmUpload = useCallback(async () => {
+    if (!previewFile) return;
+
+    setIsUploading(true);
+    onLoadingChange(true);
+    setShowPreview(false);
+    
+    try {
+      const result = await uploadCsv(previewFile);
+      showSuccess(`CSV file "${previewFile.name}" uploaded successfully! ${result.totalRows} rows imported.`);
+      onUploadSuccess(result);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload CSV file';
+      showError(errorMessage);
+      onUploadError(errorMessage);
+    } finally {
+      setIsUploading(false);
+      onLoadingChange(false);
+      setPreviewFile(null);
+      setPreviewData([]);
+      setPreviewColumns([]);
+    }
+  }, [previewFile, onUploadSuccess, onUploadError, onLoadingChange, showSuccess, showError]);
+
+  // Handle cancel preview
+  const handleCancelPreview = useCallback(() => {
+    setShowPreview(false);
+    setPreviewFile(null);
+    setPreviewData([]);
+    setPreviewColumns([]);
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
@@ -79,7 +182,18 @@ const CsvUploader: React.FC<CsvUploaderProps> = ({
   });
 
   return (
-    <div className={`card-modern${darkMode ? '-dark' : ''} rounded-2xl p-8 transition-smooth hover-lift`}>
+    <>
+      {showPreview && previewFile && (
+        <PreviewModal
+          fileName={previewFile.name}
+          previewData={previewData}
+          columns={previewColumns}
+          onConfirm={handleConfirmUpload}
+          onCancel={handleCancelPreview}
+          darkMode={darkMode}
+        />
+      )}
+      <div className={`card-modern${darkMode ? '-dark' : ''} rounded-2xl p-8 transition-smooth hover-lift`}>
       <div
         {...getRootProps()}
         className={`
@@ -177,6 +291,7 @@ const CsvUploader: React.FC<CsvUploaderProps> = ({
         </div>
       </div>
     </div>
+    </>
   );
 };
 
