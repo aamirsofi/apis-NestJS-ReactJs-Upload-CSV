@@ -27,9 +27,38 @@ export const uploadCsv = async (file: File): Promise<CsvData> => {
   }
 };
 
-export const getUploadHistory = async (status?: UploadStatus): Promise<UploadHistoryResponse> => {
+export interface UploadHistoryFilters {
+  status?: UploadStatus;
+  search?: string;
+  startDate?: string;
+  endDate?: string;
+  minSize?: number;
+  maxSize?: number;
+}
+
+export const getUploadHistory = async (
+  filters?: UploadHistoryFilters | UploadStatus,
+): Promise<UploadHistoryResponse> => {
   try {
-    const params = status ? { status } : {};
+    // Support both old API (just status) and new API (filters object)
+    let params: Record<string, any> = {};
+    
+    if (filters) {
+      if (typeof filters === 'string') {
+        // Old API: just status string
+        params.status = filters;
+      } else {
+        // New API: filters object
+        params = { ...filters };
+        // Remove undefined values
+        Object.keys(params).forEach((key) => {
+          if (params[key] === undefined || params[key] === '') {
+            delete params[key];
+          }
+        });
+      }
+    }
+    
     const response = await api.get<UploadHistoryResponse>('/csv-import/history', { params });
     return response.data;
   } catch (error) {

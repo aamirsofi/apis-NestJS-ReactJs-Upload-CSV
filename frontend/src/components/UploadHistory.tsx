@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { UploadHistoryResponse, UploadRecord, UploadStatus, CsvRow } from '../types';
-import { getUploadHistory, getUploadData } from '../services/api';
+import { getUploadHistory, getUploadData, UploadHistoryFilters } from '../services/api';
 
 interface UploadHistoryProps {
   onUploadClick?: (upload: UploadRecord) => void;
@@ -13,9 +13,25 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<UploadStatus | 'all'>('all');
+  
+  // Advanced filter states
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [fileSizeFilter, setFileSizeFilter] = useState<string>('all'); // 'all', 'small', 'medium', 'large'
+  
   const [selectedUpload, setSelectedUpload] = useState<UploadRecord | null>(null);
   const [uploadData, setUploadData] = useState<CsvRow[] | null>(null);
   const [loadingData, setLoadingData] = useState(false);
+
+  // Debounce search query to avoid too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadHistory();
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     loadAllHistory(); // Always load all history for accurate counts
@@ -26,7 +42,8 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
       loadHistory();
     }, 5000);
     return () => clearInterval(interval);
-  }, [filter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, startDate, endDate, fileSizeFilter]);
 
   // Load all history (no filter) to get accurate total counts
   const loadAllHistory = async () => {
@@ -42,8 +59,48 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
   const loadHistory = async () => {
     try {
       setLoading(true);
-      const status = filter === 'all' ? undefined : filter;
-      const data = await getUploadHistory(status);
+      
+      // Build filters object
+      const filters: UploadHistoryFilters = {};
+      
+      // Status filter
+      if (filter !== 'all') {
+        filters.status = filter;
+      }
+      
+      // Search filter
+      if (searchQuery.trim()) {
+        filters.search = searchQuery.trim();
+      }
+      
+      // Date range filters
+      if (startDate) {
+        filters.startDate = new Date(startDate).toISOString();
+      }
+      if (endDate) {
+        // Set to end of day
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999);
+        filters.endDate = endDateTime.toISOString();
+      }
+      
+      // File size filters
+      if (fileSizeFilter !== 'all') {
+        switch (fileSizeFilter) {
+          case 'small':
+            filters.maxSize = 1024 * 100; // 100 KB
+            break;
+          case 'medium':
+            filters.minSize = 1024 * 100; // 100 KB
+            filters.maxSize = 1024 * 1024 * 5; // 5 MB
+            break;
+          case 'large':
+            filters.minSize = 1024 * 1024 * 5; // 5 MB
+            break;
+        }
+      }
+      
+      const data = await getUploadHistory(filters);
       setHistory(data);
       setError(null);
     } catch (err) {
@@ -52,6 +109,18 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
       setLoading(false);
     }
   };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setFilter('all');
+    setSearchQuery('');
+    setStartDate('');
+    setEndDate('');
+    setFileSizeFilter('all');
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = filter !== 'all' || searchQuery.trim() || startDate || endDate || fileSizeFilter !== 'all';
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -138,6 +207,117 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
 
   return (
     <div className={`card-modern${darkMode ? '-dark' : ''} rounded-2xl p-8 transition-smooth`}>
+      {/* Advanced Filters Section - Single Row */}
+      <div className={`mb-6 p-3 rounded-xl ${
+        darkMode ? 'bg-gray-800/50 border border-gray-700' : 'bg-gray-50 border border-gray-200'
+      }`}>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          {/* Search Input - Compact */}
+          <div className="flex-1 min-w-0">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search filename..."
+                className={`w-full px-4 py-2 pl-10 pr-10 rounded-xl border transition-smooth text-sm ${
+                  darkMode
+                    ? 'bg-gray-900 border-gray-700 text-gray-200 placeholder-gray-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                }`}
+              />
+              <svg
+                className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                  darkMode ? 'text-gray-500' : 'text-gray-400'
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${
+                    darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Start Date */}
+          <div className="w-full sm:w-auto">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className={`w-full sm:w-auto px-3 py-2 rounded-xl border transition-smooth text-sm ${
+                darkMode
+                  ? 'bg-gray-900 border-gray-700 text-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                  : 'bg-white border-gray-300 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+              }`}
+              placeholder="Start Date"
+            />
+          </div>
+
+          {/* End Date */}
+          <div className="w-full sm:w-auto">
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className={`w-full sm:w-auto px-3 py-2 rounded-xl border transition-smooth text-sm ${
+                darkMode
+                  ? 'bg-gray-900 border-gray-700 text-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                  : 'bg-white border-gray-300 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+              }`}
+              placeholder="End Date"
+            />
+          </div>
+
+          {/* File Size Filter */}
+          <div className="w-full sm:w-auto sm:min-w-[140px]">
+            <select
+              value={fileSizeFilter}
+              onChange={(e) => setFileSizeFilter(e.target.value)}
+              className={`w-full sm:w-auto px-3 py-2 rounded-xl border transition-smooth text-sm ${
+                darkMode
+                  ? 'bg-gray-900 border-gray-700 text-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                  : 'bg-white border-gray-300 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+              }`}
+            >
+              <option value="all">All Sizes</option>
+              <option value="small">Small (&lt; 100 KB)</option>
+              <option value="medium">Medium (100 KB - 5 MB)</option>
+              <option value="large">Large (&gt; 5 MB)</option>
+            </select>
+          </div>
+
+          {/* Clear Filters Button */}
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className={`px-3 py-2 rounded-xl transition-smooth hover-lift flex items-center gap-2 text-sm font-medium whitespace-nowrap ${
+                darkMode
+                  ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h2 className={`text-3xl font-bold mb-2 ${

@@ -159,21 +159,26 @@ export class CsvImportController {
 
   /**
    * GET /csv-import/history
-   * Retrieves upload history with optional status filtering
+   * Retrieves upload history with advanced filtering options
    *
    * Query Parameters:
    * - status (optional): Filter by 'success', 'failed', or 'processing'
+   * - search (optional): Search by filename (case-insensitive partial match)
+   * - startDate (optional): Filter uploads from this date (ISO 8601 format)
+   * - endDate (optional): Filter uploads until this date (ISO 8601 format)
+   * - minSize (optional): Minimum file size in bytes
+   * - maxSize (optional): Maximum file size in bytes
    *
    * Returns:
-   * - List of all uploads (or filtered by status)
+   * - List of all uploads (or filtered by criteria)
    * - Statistics: total, success count, failed count, processing count
    * - Results sorted: success first, then processing, then failed
    */
   @Get('history') // Handles GET requests to /csv-import/history
   @ApiOperation({
-    summary: 'Get upload history',
+    summary: 'Get upload history with advanced filters',
     description:
-      'Retrieves all upload records. Can be filtered by status (success, failed, processing). Results are sorted with success first, then processing, then failed.',
+      'Retrieves all upload records with optional filtering by status, filename search, date range, and file size. Results are sorted with success first, then processing, then failed.',
   })
   @ApiQuery({
     name: 'status',
@@ -181,21 +186,58 @@ export class CsvImportController {
     enum: UploadStatus,
     description: 'Filter uploads by status',
   })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search by filename (case-insensitive partial match)',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: 'Filter uploads from this date (ISO 8601 format, e.g., 2024-01-01T00:00:00Z)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: 'Filter uploads until this date (ISO 8601 format, e.g., 2024-12-31T23:59:59Z)',
+  })
+  @ApiQuery({
+    name: 'minSize',
+    required: false,
+    type: Number,
+    description: 'Minimum file size in bytes',
+  })
+  @ApiQuery({
+    name: 'maxSize',
+    required: false,
+    type: Number,
+    description: 'Maximum file size in bytes',
+  })
   @ApiResponse({
     status: 200,
     description: 'Upload history retrieved successfully',
     type: UploadHistoryResponseDto,
   })
   async getUploadHistory(
-    @Query('status') status?: UploadStatus, // Optional query parameter: ?status=success
+    @Query('status') status?: UploadStatus,
+    @Query('search') search?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('minSize') minSize?: string,
+    @Query('maxSize') maxSize?: string,
   ): Promise<UploadHistoryResponseDto> {
-    // Get all uploads from database (sorted: success → processing → failed)
-    let uploads = await this.uploadHistoryService.getAllUploads();
-
-    // If status filter is provided, filter the results
-    if (status && Object.values(UploadStatus).includes(status)) {
-      uploads = await this.uploadHistoryService.getUploadsByStatus(status);
-    }
+    // Get filtered uploads using advanced filtering
+    const uploads = await this.uploadHistoryService.getUploadsWithFilters({
+      status,
+      search,
+      startDate: startDate ? new Date(startDate) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+      minSize: minSize ? parseInt(minSize, 10) : undefined,
+      maxSize: maxSize ? parseInt(maxSize, 10) : undefined,
+    });
 
     // Calculate statistics for the response
     const success = uploads.filter(

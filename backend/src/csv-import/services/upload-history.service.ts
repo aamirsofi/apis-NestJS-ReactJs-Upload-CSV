@@ -167,6 +167,76 @@ export class UploadHistoryService {
   }
 
   /**
+   * getUploadsWithFilters - Retrieves uploads with advanced filtering
+   *
+   * @param filters - Filter criteria object
+   * @returns Array of upload records matching all filter criteria
+   */
+  async getUploadsWithFilters(filters: {
+    status?: UploadStatus;
+    search?: string;
+    startDate?: Date;
+    endDate?: Date;
+    minSize?: number;
+    maxSize?: number;
+  }): Promise<UploadRecord[]> {
+    // Build query with filters
+    const queryBuilder = this.uploadRepository.createQueryBuilder('upload');
+
+    // Status filter
+    if (filters.status) {
+      queryBuilder.andWhere('upload.status = :status', { status: filters.status });
+    }
+
+    // Filename search filter (case-insensitive partial match)
+    if (filters.search && filters.search.trim()) {
+      queryBuilder.andWhere('LOWER(upload.fileName) LIKE LOWER(:search)', {
+        search: `%${filters.search.trim()}%`,
+      });
+    }
+
+    // Date range filters
+    if (filters.startDate) {
+      queryBuilder.andWhere('upload.uploadedAt >= :startDate', {
+        startDate: filters.startDate,
+      });
+    }
+    if (filters.endDate) {
+      queryBuilder.andWhere('upload.uploadedAt <= :endDate', {
+        endDate: filters.endDate,
+      });
+    }
+
+    // File size filters
+    if (filters.minSize !== undefined) {
+      queryBuilder.andWhere('upload.fileSize >= :minSize', {
+        minSize: filters.minSize,
+      });
+    }
+    if (filters.maxSize !== undefined) {
+      queryBuilder.andWhere('upload.fileSize <= :maxSize', {
+        maxSize: filters.maxSize,
+      });
+    }
+
+    // Apply sorting: status priority first, then date
+    queryBuilder.orderBy(
+      `CASE 
+        WHEN upload.status = 'success' THEN 0
+        WHEN upload.status = 'processing' THEN 1
+        WHEN upload.status = 'failed' THEN 2
+        ELSE 3
+      END`,
+      'ASC',
+    );
+    queryBuilder.addOrderBy('upload.uploadedAt', 'DESC');
+
+    // Execute query and convert to interface objects
+    const records = await queryBuilder.getMany();
+    return records.map((record) => this.entityToInterface(record));
+  }
+
+  /**
    * entityToInterface - Converts database entity to interface
    *
    * @param entity - Database entity (UploadRecordEntity)
