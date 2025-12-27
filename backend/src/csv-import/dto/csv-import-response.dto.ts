@@ -3,5 +3,6 @@ export class CsvImportResponseDto {
   message: string;
   data: any[];
   totalRows: number;
+  uploadId?: string;
 }
 

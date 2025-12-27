@@ -10,6 +10,7 @@ A full-stack application for importing and processing CSV files, built with Nest
 - ✅ Automatic CSV parsing and validation
 - 🔍 Type-safe responses with DTOs
 - 🛡️ Input validation and error handling
+- 📊 Upload history tracking with status (success, failed, processing)
 - 📝 Automatic API documentation (Swagger ready)
 
 ### Frontend (React + Vite)
@@ -17,6 +18,7 @@ A full-stack application for importing and processing CSV files, built with Nest
 - 🎨 Modern, responsive UI with Tailwind CSS
 - 📤 Drag & drop file upload
 - 📊 CSV data preview in a table format
+- 📋 Upload history view with status filtering
 - ⚡ Fast development with Vite
 - 🔄 Loading states and error handling
 - 📱 Mobile-friendly design
@@ -154,9 +156,40 @@ curl -X POST http://localhost:3000/csv-import/upload \
 4. Key: `file` (type: File)
 5. Select your CSV file
 
+### Get Upload History
+
+```
+GET /csv-import/history
+GET /csv-import/history?status=success
+GET /csv-import/history?status=failed
+GET /csv-import/history?status=processing
+```
+
+**Query Parameters:**
+- `status` (optional): Filter by status (`success`, `failed`, `processing`)
+
+**Example using cURL:**
+
+```bash
+curl http://localhost:3000/csv-import/history
+curl http://localhost:3000/csv-import/history?status=success
+```
+
+### Get Upload by ID
+
+```
+GET /csv-import/history/:id
+```
+
+**Example using cURL:**
+
+```bash
+curl http://localhost:3000/csv-import/history/1234567890-abc123
+```
+
 ## Response Format
 
-**Success Response:**
+**Success Response (Upload):**
 
 ```json
 {
@@ -168,7 +201,41 @@ curl -X POST http://localhost:3000/csv-import/upload \
       "column2": "value2"
     }
   ],
-  "totalRows": 1
+  "totalRows": 1,
+  "uploadId": "1234567890-abc123"
+}
+```
+
+**Upload History Response:**
+
+```json
+{
+  "uploads": [
+    {
+      "id": "1234567890-abc123",
+      "fileName": "data.csv",
+      "fileSize": 1024,
+      "status": "success",
+      "uploadedAt": "2024-01-01T12:00:00.000Z",
+      "completedAt": "2024-01-01T12:00:01.000Z",
+      "totalRows": 10,
+      "message": "CSV file imported successfully"
+    },
+    {
+      "id": "1234567890-xyz789",
+      "fileName": "invalid.csv",
+      "fileSize": 512,
+      "status": "failed",
+      "uploadedAt": "2024-01-01T11:00:00.000Z",
+      "completedAt": "2024-01-01T11:00:00.500Z",
+      "errors": ["CSV parsing failed: Invalid format"],
+      "message": "Failed to parse CSV: Invalid format"
+    }
+  ],
+  "total": 2,
+  "success": 1,
+  "failed": 1,
+  "processing": 0
 }
 ```
 
