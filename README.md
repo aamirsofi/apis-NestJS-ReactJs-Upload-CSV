@@ -123,6 +123,33 @@ npm run build
 npm run preview
 ```
 
+## API Documentation
+
+### Swagger/OpenAPI Interactive Documentation
+
+The API includes automatic Swagger documentation for easy testing and exploration:
+
+**Access Swagger UI:**
+```
+http://localhost:3000/api-docs
+```
+
+**Features:**
+- 📖 Interactive API documentation
+- 🧪 Test endpoints directly from browser
+- 📋 View request/response schemas
+- 💡 See example requests and responses
+
+**For other developers:** Share the Swagger URL when the server is running.
+
+**OpenAPI JSON Specification:**
+```
+http://localhost:3000/api-docs-json
+```
+(Can be imported into Postman or other API clients)
+
+---
+
 ## API Endpoints
 
 ### Health Check
@@ -316,6 +343,16 @@ npm run test:cov      # test coverage
 cd frontend
 npm run lint          # linting
 ```
+
+## Exposing APIs to Other Developers
+
+See [API_DOCUMENTATION.md](./backend/API_DOCUMENTATION.md) for detailed guide on:
+- How to share APIs with other developers
+- Swagger documentation access
+- Network access configuration
+- Deployment options
+- Code examples for different languages
+- Postman collection import
 
 ## License
 

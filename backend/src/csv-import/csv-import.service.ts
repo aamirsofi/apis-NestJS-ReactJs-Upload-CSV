@@ -26,7 +26,9 @@ export class CsvImportService {
     }
   }
 
-  async validateCsvData(data: CsvRow[]): Promise<{ valid: boolean; errors: string[] }> {
+  async validateCsvData(
+    data: CsvRow[],
+  ): Promise<{ valid: boolean; errors: string[] }> {
     const errors: string[] = [];
 
     if (data.length === 0) {
@@ -49,4 +51,3 @@ export class CsvImportService {
     };
   }
 }
-

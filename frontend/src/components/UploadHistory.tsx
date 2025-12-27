@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { UploadHistoryResponse, UploadRecord, UploadStatus } from '../types';
-import { getUploadHistory } from '../services/api';
+import { UploadHistoryResponse, UploadRecord, UploadStatus, CsvRow } from '../types';
+import { getUploadHistory, getUploadData } from '../services/api';
 
 interface UploadHistoryProps {
   onUploadClick?: (upload: UploadRecord) => void;
@@ -11,6 +11,9 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<UploadStatus | 'all'>('all');
+  const [selectedUpload, setSelectedUpload] = useState<UploadRecord | null>(null);
+  const [uploadData, setUploadData] = useState<CsvRow[] | null>(null);
+  const [loadingData, setLoadingData] = useState(false);
 
   useEffect(() => {
     loadHistory();
@@ -58,6 +61,29 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick }) => {
       default:
         return `${baseClasses} bg-gray-100 text-gray-800`;
     }
+  };
+
+  const handleViewData = async (upload: UploadRecord, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row click
+    if (upload.status === UploadStatus.SUCCESS) {
+      setSelectedUpload(upload);
+      setLoadingData(true);
+      try {
+        const data = await getUploadData(upload.id);
+        setUploadData(data.data);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load CSV data');
+        setUploadData(null);
+      } finally {
+        setLoadingData(false);
+      }
+    }
+  };
+
+  const closeModal = () => {
+    setSelectedUpload(null);
+    setUploadData(null);
   };
 
   if (loading && !history) {
@@ -158,14 +184,16 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick }) => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Message
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {history?.uploads.map((upload) => (
                 <tr
                   key={upload.id}
-                  className="hover:bg-gray-50 cursor-pointer"
-                  onClick={() => onUploadClick?.(upload)}
+                  className="hover:bg-gray-50"
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {upload.fileName}
@@ -194,10 +222,86 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick }) => {
                       </div>
                     )}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    {upload.status === UploadStatus.SUCCESS && (
+                      <button
+                        onClick={(e) => handleViewData(upload, e)}
+                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                      >
+                        View Data
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Modal for viewing CSV data */}
+      {selectedUpload && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800">
+                  CSV Data: {selectedUpload.fileName}
+                </h3>
+                <p className="text-gray-600 mt-1">
+                  {selectedUpload.totalRows} row{selectedUpload.totalRows !== 1 ? 's' : ''} imported
+                </p>
+              </div>
+              <button
+                onClick={closeModal}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-6">
+              {loadingData ? (
+                <div className="flex justify-center items-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                </div>
+              ) : uploadData && uploadData.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        {Object.keys(uploadData[0]).map((header) => (
+                          <th
+                            key={header}
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                          >
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {uploadData.map((row, index) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          {Object.values(row).map((cell, cellIndex) => (
+                            <td
+                              key={cellIndex}
+                              className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                            >
+                              {cell || '-'}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  No data available
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -5,4 +5,3 @@ export class CsvImportResponseDto {
   totalRows: number;
   uploadId?: string;
 }
-

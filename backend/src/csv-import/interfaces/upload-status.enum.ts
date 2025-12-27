@@ -3,4 +3,3 @@ export enum UploadStatus {
   FAILED = 'failed',
   PROCESSING = 'processing',
 }
-

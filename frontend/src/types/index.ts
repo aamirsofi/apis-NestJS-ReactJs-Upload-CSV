@@ -26,6 +26,7 @@ export interface UploadRecord {
   totalRows?: number;
   errors?: string[];
   message?: string;
+  data?: CsvRow[]; // CSV data for successful uploads
 }
 
 export interface UploadHistoryResponse {

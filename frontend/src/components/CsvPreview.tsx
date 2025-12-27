@@ -1,4 +1,4 @@
-import { CsvData } from '../types';
+import { CsvData } from "../types";
 
 interface CsvPreviewProps {
   data: CsvData;
@@ -16,7 +16,7 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset }) => {
             CSV Import Successful!
           </h2>
           <p className="text-gray-600 mt-1">
-            {data.totalRows} row{data.totalRows !== 1 ? 's' : ''} imported
+            {data.totalRows} row{data.totalRows !== 1 ? "s" : ""} imported
           </p>
         </div>
         <button
@@ -27,10 +27,14 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset }) => {
         </button>
       </div>
 
+      <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+        <p className="text-green-800">
+          <span className="font-semibold">✓ {data.message}</span>
+        </p>
+      </div>
+
       {data.data.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          No data to display
-        </div>
+        <div className="text-center py-8 text-gray-500">No data to display</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -54,7 +58,7 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset }) => {
                       key={colIndex}
                       className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                     >
-                      {row[header] || '-'}
+                      {row[header] || "-"}
                     </td>
                   ))}
                 </tr>
@@ -63,15 +67,8 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset }) => {
           </table>
         </div>
       )}
-
-      <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-        <p className="text-green-800">
-          <span className="font-semibold">✓ {data.message}</span>
-        </p>
-      </div>
     </div>
   );
 };
 
 export default CsvPreview;
-

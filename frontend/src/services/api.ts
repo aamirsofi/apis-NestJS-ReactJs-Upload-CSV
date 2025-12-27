@@ -54,5 +54,25 @@ export const getUploadById = async (id: string): Promise<UploadRecord> => {
   }
 };
 
+export interface UploadDataResponse {
+  uploadId: string;
+  fileName: string;
+  totalRows: number;
+  data: CsvRow[];
+}
+
+export const getUploadData = async (id: string): Promise<UploadDataResponse> => {
+  try {
+    const response = await api.get<UploadDataResponse>(`/csv-import/history/${id}/data`);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message || 'Failed to fetch upload data';
+      throw new Error(message);
+    }
+    throw new Error('An unexpected error occurred');
+  }
+};
+
 export default api;
 

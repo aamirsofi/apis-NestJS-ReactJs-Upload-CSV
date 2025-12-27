@@ -1,4 +1,5 @@
 import { UploadStatus } from './upload-status.enum';
+import { CsvRow } from '../csv-import.service';
 
 export interface UploadRecord {
   id: string;
@@ -10,5 +11,5 @@ export interface UploadRecord {
   totalRows?: number;
   errors?: string[];
   message?: string;
+  data?: CsvRow[]; // Store parsed CSV data for successful uploads
 }
-

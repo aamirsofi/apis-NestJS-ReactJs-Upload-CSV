@@ -7,4 +7,3 @@ export class UploadHistoryResponseDto {
   failed: number;
   processing: number;
 }
-
