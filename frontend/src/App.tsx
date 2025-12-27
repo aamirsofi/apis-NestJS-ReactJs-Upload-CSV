@@ -3,6 +3,7 @@ import CsvUploader from './components/CsvUploader'
 import CsvPreview from './components/CsvPreview'
 import UploadHistory from './components/UploadHistory'
 import StatisticsDashboard from './components/StatisticsDashboard'
+import AuditLogs from './components/AuditLogs'
 import { ToastProvider } from './contexts/ToastContext'
 import { CsvData, UploadRecord } from './types'
 
@@ -12,6 +13,7 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const [showStatistics, setShowStatistics] = useState(false)
+  const [showAuditLogs, setShowAuditLogs] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
 
   const handleUploadSuccess = (data: CsvData) => {
@@ -34,6 +36,7 @@ function App() {
     setError(null)
     setShowHistory(false)
     setShowStatistics(false)
+    setShowAuditLogs(false)
   }
 
   const handleUploadClick = (upload: UploadRecord) => {
@@ -89,10 +92,11 @@ function App() {
               onClick={() => {
                 setShowHistory(false);
                 setShowStatistics(false);
+                setShowAuditLogs(false);
                 setCsvData(null);
               }}
               className={`px-6 py-3 rounded-xl font-semibold transition-smooth hover-lift ${
-                !showHistory && !showStatistics && !csvData
+                !showHistory && !showStatistics && !showAuditLogs && !csvData
                   ? darkMode
                     ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/50'
                     : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
@@ -107,10 +111,11 @@ function App() {
               onClick={() => {
                 setShowHistory(true);
                 setShowStatistics(false);
+                setShowAuditLogs(false);
                 setCsvData(null);
               }}
               className={`px-6 py-3 rounded-xl font-semibold transition-smooth hover-lift ${
-                showHistory && !showStatistics
+                showHistory && !showStatistics && !showAuditLogs
                   ? darkMode
                     ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/50'
                     : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
@@ -125,10 +130,11 @@ function App() {
               onClick={() => {
                 setShowStatistics(true);
                 setShowHistory(false);
+                setShowAuditLogs(false);
                 setCsvData(null);
               }}
               className={`px-6 py-3 rounded-xl font-semibold transition-smooth hover-lift ${
-                showStatistics
+                showStatistics && !showHistory && !showAuditLogs
                   ? darkMode
                     ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/50'
                     : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
@@ -139,10 +145,31 @@ function App() {
             >
               Statistics
             </button>
+            <button
+              onClick={() => {
+                setShowAuditLogs(true);
+                setShowHistory(false);
+                setShowStatistics(false);
+                setCsvData(null);
+              }}
+              className={`px-6 py-3 rounded-xl font-semibold transition-smooth hover-lift ${
+                showAuditLogs && !showHistory && !showStatistics
+                  ? darkMode
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/50'
+                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
+                  : darkMode
+                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 shadow-md'
+              }`}
+            >
+              Audit Logs
+            </button>
           </div>
 
           {/* Main Content */}
-          {showStatistics ? (
+          {showAuditLogs ? (
+            <AuditLogs darkMode={darkMode} />
+          ) : showStatistics ? (
             <StatisticsDashboard darkMode={darkMode} />
           ) : showHistory ? (
             <UploadHistory onUploadClick={handleUploadClick} darkMode={darkMode} />

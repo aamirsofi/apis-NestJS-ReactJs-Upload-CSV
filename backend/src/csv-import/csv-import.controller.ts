@@ -26,8 +26,9 @@ import {
   NotFoundException,
   Body,
   Res,
+  Req,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Response, Request as ExpressRequest } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -41,6 +42,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Express } from 'express';
 import { CsvImportService } from './csv-import.service';
 import { UploadHistoryService } from './services/upload-history.service';
+import { AuditLogService } from './services/audit-log.service';
+import { AuditAction } from './entities/audit-log.entity';
 import { CsvImportResponseDto } from './dto/csv-import-response.dto';
 import { UploadHistoryResponseDto } from './dto/upload-history-response.dto';
 import { UploadStatus } from './interfaces/upload-status.enum';
@@ -57,6 +60,7 @@ export class CsvImportController {
   constructor(
     private readonly csvImportService: CsvImportService,
     private readonly uploadHistoryService: UploadHistoryService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   /**
@@ -131,6 +135,7 @@ export class CsvImportController {
     @Query('duplicateColumns') duplicateColumns?: string,
     @Query('handleDuplicates') handleDuplicates?: 'skip' | 'keep' | 'mark',
     @Query('columnMapping') columnMappingStr?: string,
+    @Req() req?: ExpressRequest,
   ): Promise<CsvImportResponseDto> {
     // Validation: Check if file was uploaded
     if (!file) {
@@ -208,7 +213,24 @@ export class CsvImportController {
         finalMessage += ` (${duplicateCount} duplicate${duplicateCount !== 1 ? 's' : ''} detected)`;
       }
 
-      // Step 7: Return success response with parsed data
+      // Step 7: Log successful upload action
+      await this.auditLogService.logAction(AuditAction.UPLOAD, {
+        uploadId: uploadRecord.id,
+        fileName: file.originalname,
+        userIp: req?.ip || req?.socket?.remoteAddress,
+        userAgent: req?.headers['user-agent'],
+        details: {
+          fileSize: file.size,
+          totalRows: result.data.length,
+          duplicateCount,
+          detectDuplicates: detectDuplicates === 'true',
+          handleDuplicates: handleDuplicates || 'mark',
+          columnMapping: columnMapping ? Object.keys(columnMapping).length : 0,
+        },
+        status: 'success',
+      });
+
+      // Step 8: Return success response with parsed data
       return {
         success: true,
         message: finalMessage,
@@ -231,9 +253,109 @@ export class CsvImportController {
         },
       );
 
+      // Log failed upload action
+      await this.auditLogService.logAction(AuditAction.UPLOAD, {
+        uploadId: uploadRecord.id,
+        fileName: file.originalname,
+        userIp: req?.ip || req?.socket?.remoteAddress,
+        userAgent: req?.headers['user-agent'],
+        status: 'failed',
+        errorMessage,
+      });
+
       // Throw error to return error response to client
       throw new BadRequestException(`Failed to parse CSV: ${errorMessage}`);
     }
+  }
+
+  /**
+   * GET /csv-import/audit-logs
+   * Retrieves audit logs with optional filtering
+   * 
+   * Note: This route must be defined before 'history/:id' to avoid route conflicts
+   */
+  @Get('audit-logs')
+  @ApiOperation({
+    summary: 'Get audit logs',
+    description: 'Retrieves audit logs with optional filtering by action, upload ID, and date range.',
+  })
+  @ApiQuery({
+    name: 'action',
+    required: false,
+    enum: AuditAction,
+    description: 'Filter by action type',
+  })
+  @ApiQuery({
+    name: 'uploadId',
+    required: false,
+    type: String,
+    description: 'Filter by upload ID',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: 'Start date for filtering (ISO 8601 format)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: 'End date for filtering (ISO 8601 format)',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Number of records per page (default: 50)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Audit logs retrieved successfully',
+  })
+  async getAuditLogs(
+    @Query('action') action?: string,
+    @Query('uploadId') uploadId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const filters: {
+      action?: AuditAction;
+      uploadId?: string;
+      startDate?: Date;
+      endDate?: Date;
+    } = {};
+
+    if (action && Object.values(AuditAction).includes(action as AuditAction)) {
+      filters.action = action as AuditAction;
+    }
+
+    if (uploadId) {
+      filters.uploadId = uploadId;
+    }
+
+    if (startDate) {
+      filters.startDate = new Date(startDate);
+    }
+
+    if (endDate) {
+      const endDateTime = new Date(endDate);
+      endDateTime.setHours(23, 59, 59, 999);
+      filters.endDate = endDateTime;
+    }
+
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 50;
+
+    return await this.auditLogService.getAuditLogs(filters, pageNum, limitNum);
   }
 
   /**
@@ -450,7 +572,7 @@ export class CsvImportController {
     status: 404,
     description: 'Upload record or CSV data not found',
   })
-  async getUploadData(@Param('id') id: string) {
+  async getUploadData(@Param('id') id: string, @Req() req?: ExpressRequest) {
     // Get upload record from database
     const upload = await this.uploadHistoryService.getUploadById(id);
     if (!upload) {
@@ -468,6 +590,18 @@ export class CsvImportController {
     if (!upload.data) {
       throw new NotFoundException('CSV data not found for this upload');
     }
+
+    // Log view data action
+    await this.auditLogService.logAction(AuditAction.VIEW_DATA, {
+      uploadId: upload.id,
+      fileName: upload.fileName,
+      userIp: req?.ip || req?.socket?.remoteAddress,
+      userAgent: req?.headers['user-agent'],
+      details: {
+        totalRows: upload.totalRows,
+      },
+      status: 'success',
+    });
 
     // Return CSV data with metadata
     return {
@@ -490,7 +624,7 @@ export class CsvImportController {
   @ApiParam({ name: 'id', description: 'Upload record ID' })
   @ApiResponse({ status: 200, description: 'File downloaded successfully' })
   @ApiResponse({ status: 404, description: 'Upload record or file not found' })
-  async downloadOriginalFile(@Param('id') id: string, @Res() res: Response) {
+  async downloadOriginalFile(@Param('id') id: string, @Res() res: Response, @Req() req?: ExpressRequest) {
     const upload = await this.uploadHistoryService.getUploadById(id);
     if (!upload) {
       throw new NotFoundException('Upload record not found');
@@ -500,6 +634,18 @@ export class CsvImportController {
     if (!fileBuffer) {
       throw new NotFoundException('Original file not found');
     }
+
+    // Log download action
+    await this.auditLogService.logAction(AuditAction.DOWNLOAD_ORIGINAL, {
+      uploadId: upload.id,
+      fileName: upload.fileName,
+      userIp: req?.ip || req?.socket?.remoteAddress,
+      userAgent: req?.headers['user-agent'],
+      details: {
+        fileSize: upload.fileSize,
+      },
+      status: 'success',
+    });
 
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader(
@@ -520,7 +666,7 @@ export class CsvImportController {
     description: 'Exports CSV data from an upload to a downloadable CSV file.',
   })
   @ApiResponse({ status: 200, description: 'CSV file exported successfully' })
-  async exportCsvData(@Body('uploadId') uploadId: string, @Res() res: Response) {
+  async exportCsvData(@Body('uploadId') uploadId: string, @Res() res: Response, @Req() req?: ExpressRequest) {
     const upload = await this.uploadHistoryService.getUploadById(uploadId);
     if (!upload) {
       throw new NotFoundException('Upload record not found');
@@ -549,6 +695,19 @@ export class CsvImportController {
     const csvContent = csvRows.join('\n');
     const csvBuffer = Buffer.from(csvContent, 'utf-8');
 
+    // Log export action
+    await this.auditLogService.logAction(AuditAction.EXPORT, {
+      uploadId: upload.id,
+      fileName: upload.fileName,
+      userIp: req?.ip || req?.socket?.remoteAddress,
+      userAgent: req?.headers['user-agent'],
+      details: {
+        totalRows: upload.totalRows,
+        exportFileName: `export_${upload.fileName}`,
+      },
+      status: 'success',
+    });
+
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader(
       'Content-Disposition',
@@ -571,15 +730,28 @@ export class CsvImportController {
     status: 200,
     description: 'Uploads deleted successfully',
   })
-  async bulkDelete(@Body('ids') ids: string[]) {
+  async bulkDelete(@Body('ids') ids: string[], @Req() req?: ExpressRequest) {
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       throw new BadRequestException('ids array is required and must not be empty');
     }
 
     const deletedCount = await this.uploadHistoryService.deleteUploads(ids);
+
+    // Log bulk delete action
+    await this.auditLogService.logAction(AuditAction.BULK_DELETE, {
+      userIp: req?.ip || req?.socket?.remoteAddress,
+      userAgent: req?.headers['user-agent'],
+      details: {
+        deletedCount,
+        uploadIds: ids,
+      },
+      status: 'success',
+    });
+
     return {
       deleted: deletedCount,
       message: `Successfully deleted ${deletedCount} upload(s)`,
     };
   }
+
 }

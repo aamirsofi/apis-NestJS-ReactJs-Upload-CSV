@@ -15,18 +15,20 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CsvImportController } from './csv-import.controller';
 import { CsvImportService } from './csv-import.service';
 import { UploadHistoryService } from './services/upload-history.service';
+import { AuditLogService } from './services/audit-log.service';
 import { UploadRecordEntity } from './entities/upload-record.entity';
+import { AuditLogEntity } from './entities/audit-log.entity';
 
 @Module({
-  // Import TypeORM feature module to make UploadRecordEntity repository available
+  // Import TypeORM feature module to make entities repository available
   // This allows services in this module to use the database repository
-  imports: [TypeOrmModule.forFeature([UploadRecordEntity])],
+  imports: [TypeOrmModule.forFeature([UploadRecordEntity, AuditLogEntity])],
 
   // Controllers: Handle HTTP requests and define API endpoints
   controllers: [CsvImportController],
 
   // Providers: Services that contain business logic
   // These can be injected into controllers and other services
-  providers: [CsvImportService, UploadHistoryService],
+  providers: [CsvImportService, UploadHistoryService, AuditLogService],
 })
 export class CsvImportModule {}

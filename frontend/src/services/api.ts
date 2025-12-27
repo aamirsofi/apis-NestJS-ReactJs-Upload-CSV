@@ -189,5 +189,59 @@ export const bulkDeleteUploads = async (ids: string[]): Promise<{ deleted: numbe
   }
 };
 
+export interface AuditLog {
+  id: string;
+  action: string;
+  uploadId?: string;
+  fileName?: string;
+  userIp?: string;
+  userAgent?: string;
+  details?: Record<string, any>;
+  status: string;
+  errorMessage?: string;
+  createdAt: string;
+}
+
+export interface AuditLogsResponse {
+  logs: AuditLog[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface AuditLogFilters {
+  action?: string;
+  uploadId?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+}
+
+export const getAuditLogs = async (filters?: AuditLogFilters): Promise<AuditLogsResponse> => {
+  try {
+    const params: Record<string, string> = {};
+    
+    if (filters) {
+      if (filters.action) params.action = filters.action;
+      if (filters.uploadId) params.uploadId = filters.uploadId;
+      if (filters.startDate) params.startDate = filters.startDate;
+      if (filters.endDate) params.endDate = filters.endDate;
+      if (filters.page) params.page = filters.page.toString();
+      if (filters.limit) params.limit = filters.limit.toString();
+    }
+
+    const response = await api.get<AuditLogsResponse>('/csv-import/audit-logs', { params });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message || 'Failed to fetch audit logs';
+      throw new Error(message);
+    }
+    throw new Error('An unexpected error occurred');
+  }
+};
+
 export default api;
 
