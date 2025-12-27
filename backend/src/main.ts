@@ -21,7 +21,12 @@ async function bootstrap() {
 
   // Enable CORS (Cross-Origin Resource Sharing)
   // This allows the frontend (running on different port) to make requests to this API
-  app.enableCors();
+  app.enableCors({
+    origin: true, // Allow all origins in development
+    credentials: true, // Allow credentials (cookies, authorization headers)
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
 
   // Global Validation Pipe
   // Automatically validates incoming data based on DTOs (Data Transfer Objects)

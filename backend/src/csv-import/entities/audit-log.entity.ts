@@ -55,6 +55,16 @@ export class AuditLogEntity {
   action: AuditAction;
 
   /**
+   * User ID Column
+   * References the user who performed the action
+   * nullable: true - Some actions may be performed by unauthenticated users (legacy)
+   * Type: VARCHAR(36) - UUID string
+   */
+  @Column({ type: 'varchar', length: 36, nullable: true })
+  @Index(['userId', 'createdAt']) // Index for faster queries by user and date
+  userId?: string;
+
+  /**
    * Upload ID Column
    * References the upload record this action relates to
    * nullable: true - Some actions may not be tied to a specific upload

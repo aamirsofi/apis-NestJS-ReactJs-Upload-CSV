@@ -292,6 +292,9 @@ const AuditLogs: React.FC<AuditLogsProps> = ({ darkMode = false }) => {
                     File Name
                   </th>
                   <th className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    User
+                  </th>
+                  <th className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     Upload ID
                   </th>
                   <th className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -324,9 +327,23 @@ const AuditLogs: React.FC<AuditLogsProps> = ({ darkMode = false }) => {
                     <td className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? 'text-gray-300' : 'text-gray-900'}`}>
                       {log.fileName || <span className="opacity-50">-</span>}
                     </td>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? 'text-gray-300' : 'text-gray-900'}`}>
+                      {log.userName || log.userEmail ? (
+                        <div className="flex flex-col">
+                          <span className="font-medium">{log.userName || log.userEmail}</span>
+                          {log.userEmail && log.userName && (
+                            <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                              {log.userEmail}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="opacity-50">-</span>
+                      )}
+                    </td>
                     <td className={`px-6 py-4 whitespace-nowrap text-sm font-mono ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                       {log.uploadId ? (
-                        <span className="text-xs">{log.uploadId.substring(0, 8)}...</span>
+                        <span className="text-xs" title={log.uploadId}>{log.uploadId.substring(0, 8)}...</span>
                       ) : (
                         <span className="opacity-50">-</span>
                       )}

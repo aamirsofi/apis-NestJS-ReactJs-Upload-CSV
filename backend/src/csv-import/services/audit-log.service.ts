@@ -7,8 +7,9 @@
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { AuditLogEntity, AuditAction } from '../entities/audit-log.entity';
+import { UserEntity } from '../../auth/entities/user.entity';
 
 @Injectable()
 export class AuditLogService {
@@ -19,6 +20,8 @@ export class AuditLogService {
   constructor(
     @InjectRepository(AuditLogEntity)
     private readonly auditLogRepository: Repository<AuditLogEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
   ) {}
 
   /**
@@ -31,6 +34,7 @@ export class AuditLogService {
   async logAction(
     action: AuditAction,
     options?: {
+      userId?: string;
       uploadId?: string;
       fileName?: string;
       userIp?: string;
@@ -42,6 +46,7 @@ export class AuditLogService {
   ): Promise<AuditLogEntity> {
     const auditLog = this.auditLogRepository.create({
       action,
+      userId: options?.userId,
       uploadId: options?.uploadId,
       fileName: options?.fileName,
       userIp: options?.userIp,
@@ -55,16 +60,17 @@ export class AuditLogService {
   }
 
   /**
-   * getAuditLogs - Retrieves audit logs with optional filtering
+   * getAuditLogs - Retrieves audit logs with optional filtering and user information
    *
-   * @param filters - Filter options (action, uploadId, date range, etc.)
+   * @param filters - Filter options (action, userId, uploadId, date range, etc.)
    * @param page - Page number for pagination
    * @param limit - Number of records per page
-   * @returns Paginated audit logs
+   * @returns Paginated audit logs with user information
    */
   async getAuditLogs(
     filters?: {
       action?: AuditAction;
+      userId?: string;
       uploadId?: string;
       startDate?: Date;
       endDate?: Date;
@@ -72,17 +78,22 @@ export class AuditLogService {
     page: number = 1,
     limit: number = 50,
   ): Promise<{
-    logs: AuditLogEntity[];
+    logs: (AuditLogEntity & { userEmail?: string; userName?: string })[];
     total: number;
     page: number;
     limit: number;
     totalPages: number;
   }> {
+    // First, get audit logs with pagination
     const queryBuilder = this.auditLogRepository.createQueryBuilder('audit_log');
 
     // Apply filters
     if (filters?.action) {
       queryBuilder.andWhere('audit_log.action = :action', { action: filters.action });
+    }
+
+    if (filters?.userId) {
+      queryBuilder.andWhere('audit_log.userId = :userId', { userId: filters.userId });
     }
 
     if (filters?.uploadId) {
@@ -100,18 +111,53 @@ export class AuditLogService {
     // Order by most recent first
     queryBuilder.orderBy('audit_log.createdAt', 'DESC');
 
-    // Get total count
+    // Get total count (before pagination)
     const total = await queryBuilder.getCount();
 
     // Apply pagination
     const skip = (page - 1) * limit;
     queryBuilder.skip(skip).take(limit);
 
-    // Execute query
+    // Execute query to get audit logs
     const logs = await queryBuilder.getMany();
 
+    // Get unique user IDs from logs
+    const userIds = [...new Set(logs.map(log => log.userId).filter(Boolean))];
+
+    // Fetch user information for all user IDs in one query
+    let usersMap = new Map<string, { email: string; firstName?: string; lastName?: string }>();
+    if (userIds.length > 0) {
+      const users = await this.userRepository.find({
+        where: { id: In(userIds) },
+      });
+      users.forEach(user => {
+        usersMap.set(user.id, {
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        });
+      });
+    }
+
+    // Map logs to include user information
+    const logsWithUserInfo = logs.map(log => {
+      const logWithUser: any = { ...log };
+      if (log.userId) {
+        const user = usersMap.get(log.userId);
+        if (user) {
+          logWithUser.userEmail = user.email;
+          const firstName = user.firstName || '';
+          const lastName = user.lastName || '';
+          logWithUser.userName = firstName || lastName
+            ? `${firstName} ${lastName}`.trim()
+            : user.email?.split('@')[0] || 'Unknown';
+        }
+      }
+      return logWithUser;
+    });
+
     return {
-      logs,
+      logs: logsWithUserInfo,
       total,
       page,
       limit,

@@ -47,6 +47,9 @@ import { AuditAction } from './entities/audit-log.entity';
 import { CsvImportResponseDto } from './dto/csv-import-response.dto';
 import { UploadHistoryResponseDto } from './dto/upload-history-response.dto';
 import { UploadStatus } from './interfaces/upload-status.enum';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('csv-import') // Groups endpoints in Swagger docs
 @Controller('csv-import') // Base route: all endpoints start with /csv-import
@@ -129,12 +132,14 @@ export class CsvImportController {
     type: String,
     description: 'JSON string mapping source column names to target column names (e.g., {"oldName": "newName"})',
   })
+  @UseGuards(JwtAuthGuard)
   async uploadCsv(
     @UploadedFile() file: Express.Multer.File, // Extracts uploaded file from request
     @Query('detectDuplicates') detectDuplicates?: string,
     @Query('duplicateColumns') duplicateColumns?: string,
     @Query('handleDuplicates') handleDuplicates?: 'skip' | 'keep' | 'mark',
     @Query('columnMapping') columnMappingStr?: string,
+    @CurrentUser() user?: any,
     @Req() req?: ExpressRequest,
   ): Promise<CsvImportResponseDto> {
     // Validation: Check if file was uploaded
@@ -215,6 +220,7 @@ export class CsvImportController {
 
       // Step 7: Log successful upload action
       await this.auditLogService.logAction(AuditAction.UPLOAD, {
+        userId: user?.id,
         uploadId: uploadRecord.id,
         fileName: file.originalname,
         userIp: req?.ip || req?.socket?.remoteAddress,
@@ -255,6 +261,7 @@ export class CsvImportController {
 
       // Log failed upload action
       await this.auditLogService.logAction(AuditAction.UPLOAD, {
+        userId: user?.id,
         uploadId: uploadRecord.id,
         fileName: file.originalname,
         userIp: req?.ip || req?.socket?.remoteAddress,
@@ -319,8 +326,10 @@ export class CsvImportController {
     status: 200,
     description: 'Audit logs retrieved successfully',
   })
+  @UseGuards(JwtAuthGuard)
   async getAuditLogs(
     @Query('action') action?: string,
+    @Query('userId') userId?: string,
     @Query('uploadId') uploadId?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
@@ -329,6 +338,7 @@ export class CsvImportController {
   ) {
     const filters: {
       action?: AuditAction;
+      userId?: string;
       uploadId?: string;
       startDate?: Date;
       endDate?: Date;
@@ -336,6 +346,10 @@ export class CsvImportController {
 
     if (action && Object.values(AuditAction).includes(action as AuditAction)) {
       filters.action = action as AuditAction;
+    }
+
+    if (userId) {
+      filters.userId = userId;
     }
 
     if (uploadId) {
@@ -375,6 +389,7 @@ export class CsvImportController {
    * - Statistics: total, success count, failed count, processing count
    * - Results sorted: success first, then processing, then failed
    */
+  @UseGuards(JwtAuthGuard)
   @Get('history') // Handles GET requests to /csv-import/history
   @ApiOperation({
     summary: 'Get upload history with advanced filters',
@@ -506,6 +521,7 @@ export class CsvImportController {
    * - Upload record details (filename, status, dates, errors, etc.)
    * - Does NOT include CSV data (use /history/:id/data for that)
    */
+  @UseGuards(JwtAuthGuard)
   @Get('history/:id') // Handles GET requests to /csv-import/history/:id
   @ApiOperation({
     summary: 'Get upload details by ID',
@@ -572,7 +588,8 @@ export class CsvImportController {
     status: 404,
     description: 'Upload record or CSV data not found',
   })
-  async getUploadData(@Param('id') id: string, @Req() req?: ExpressRequest) {
+  @UseGuards(JwtAuthGuard)
+  async getUploadData(@Param('id') id: string, @CurrentUser() user?: any, @Req() req?: ExpressRequest) {
     // Get upload record from database
     const upload = await this.uploadHistoryService.getUploadById(id);
     if (!upload) {
@@ -593,6 +610,7 @@ export class CsvImportController {
 
     // Log view data action
     await this.auditLogService.logAction(AuditAction.VIEW_DATA, {
+      userId: user?.id,
       uploadId: upload.id,
       fileName: upload.fileName,
       userIp: req?.ip || req?.socket?.remoteAddress,
@@ -624,7 +642,8 @@ export class CsvImportController {
   @ApiParam({ name: 'id', description: 'Upload record ID' })
   @ApiResponse({ status: 200, description: 'File downloaded successfully' })
   @ApiResponse({ status: 404, description: 'Upload record or file not found' })
-  async downloadOriginalFile(@Param('id') id: string, @Res() res: Response, @Req() req?: ExpressRequest) {
+  @UseGuards(JwtAuthGuard)
+  async downloadOriginalFile(@Param('id') id: string, @Res() res: Response, @CurrentUser() user?: any, @Req() req?: ExpressRequest) {
     const upload = await this.uploadHistoryService.getUploadById(id);
     if (!upload) {
       throw new NotFoundException('Upload record not found');
@@ -637,6 +656,7 @@ export class CsvImportController {
 
     // Log download action
     await this.auditLogService.logAction(AuditAction.DOWNLOAD_ORIGINAL, {
+      userId: user?.id,
       uploadId: upload.id,
       fileName: upload.fileName,
       userIp: req?.ip || req?.socket?.remoteAddress,
@@ -666,7 +686,8 @@ export class CsvImportController {
     description: 'Exports CSV data from an upload to a downloadable CSV file.',
   })
   @ApiResponse({ status: 200, description: 'CSV file exported successfully' })
-  async exportCsvData(@Body('uploadId') uploadId: string, @Res() res: Response, @Req() req?: ExpressRequest) {
+  @UseGuards(JwtAuthGuard)
+  async exportCsvData(@Body('uploadId') uploadId: string, @Res() res: Response, @CurrentUser() user?: any, @Req() req?: ExpressRequest) {
     const upload = await this.uploadHistoryService.getUploadById(uploadId);
     if (!upload) {
       throw new NotFoundException('Upload record not found');
@@ -697,6 +718,7 @@ export class CsvImportController {
 
     // Log export action
     await this.auditLogService.logAction(AuditAction.EXPORT, {
+      userId: user?.id,
       uploadId: upload.id,
       fileName: upload.fileName,
       userIp: req?.ip || req?.socket?.remoteAddress,
@@ -730,7 +752,8 @@ export class CsvImportController {
     status: 200,
     description: 'Uploads deleted successfully',
   })
-  async bulkDelete(@Body('ids') ids: string[], @Req() req?: ExpressRequest) {
+  @UseGuards(JwtAuthGuard)
+  async bulkDelete(@Body('ids') ids: string[], @CurrentUser() user?: any, @Req() req?: ExpressRequest) {
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       throw new BadRequestException('ids array is required and must not be empty');
     }
@@ -739,6 +762,7 @@ export class CsvImportController {
 
     // Log bulk delete action
     await this.auditLogService.logAction(AuditAction.BULK_DELETE, {
+      userId: user?.id,
       userIp: req?.ip || req?.socket?.remoteAddress,
       userAgent: req?.headers['user-agent'],
       details: {

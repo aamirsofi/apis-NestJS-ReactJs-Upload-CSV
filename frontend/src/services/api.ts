@@ -26,10 +26,20 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid - clear auth and redirect to login
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Only redirect if it's NOT a login/register request
+      // Login/register errors should be handled by the component
+      const url = error.config?.url || '';
+      const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register');
+      
+      if (!isAuthEndpoint) {
+        // Token expired or invalid - clear auth and redirect to login
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        // Only redirect if we're not already on the login page
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+      }
     }
     return Promise.reject(error);
   },
@@ -220,6 +230,9 @@ export const bulkDeleteUploads = async (ids: string[]): Promise<{ deleted: numbe
 export interface AuditLog {
   id: string;
   action: string;
+  userId?: string;
+  userEmail?: string;
+  userName?: string;
   uploadId?: string;
   fileName?: string;
   userIp?: string;
@@ -326,7 +339,15 @@ export const login = async (data: LoginRequest): Promise<AuthResponse> => {
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      const message = error.response?.data?.message || error.message || 'Login failed';
+      // Extract error message from response
+      let message = 'Login failed';
+      if (error.response?.data?.message) {
+        message = error.response.data.message;
+      } else if (error.response?.status === 401) {
+        message = 'Invalid email or password';
+      } else if (error.message) {
+        message = error.message;
+      }
       throw new Error(message);
     }
     throw new Error('An unexpected error occurred');

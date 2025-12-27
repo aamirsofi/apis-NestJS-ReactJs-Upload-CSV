@@ -18,11 +18,12 @@ import { UploadHistoryService } from './services/upload-history.service';
 import { AuditLogService } from './services/audit-log.service';
 import { UploadRecordEntity } from './entities/upload-record.entity';
 import { AuditLogEntity } from './entities/audit-log.entity';
+import { UserEntity } from '../auth/entities/user.entity';
 
 @Module({
   // Import TypeORM feature module to make entities repository available
   // This allows services in this module to use the database repository
-  imports: [TypeOrmModule.forFeature([UploadRecordEntity, AuditLogEntity])],
+  imports: [TypeOrmModule.forFeature([UploadRecordEntity, AuditLogEntity, UserEntity])],
 
   // Controllers: Handle HTTP requests and define API endpoints
   controllers: [CsvImportController],

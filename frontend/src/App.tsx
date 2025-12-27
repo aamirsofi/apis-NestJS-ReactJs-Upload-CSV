@@ -4,10 +4,13 @@ import CsvPreview from './components/CsvPreview'
 import UploadHistory from './components/UploadHistory'
 import StatisticsDashboard from './components/StatisticsDashboard'
 import AuditLogs from './components/AuditLogs'
+import Login from './components/Login'
+import Register from './components/Register'
 import { ToastProvider } from './contexts/ToastContext'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { CsvData, UploadRecord } from './types'
 
-function App() {
+function AppContent() {
   const [csvData, setCsvData] = useState<CsvData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -15,6 +18,8 @@ function App() {
   const [showStatistics, setShowStatistics] = useState(false)
   const [showAuditLogs, setShowAuditLogs] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
+  const [showLogin, setShowLogin] = useState(true)
+  const { user, isAuthenticated, isLoading, logout } = useAuth()
 
   const handleUploadSuccess = (data: CsvData) => {
     setCsvData(data)
@@ -44,6 +49,57 @@ function App() {
     console.log('Upload clicked:', upload);
   }
 
+  // Show login/register if not authenticated
+  if (!isAuthenticated && !isLoading) {
+    return (
+      <ToastProvider darkMode={darkMode}>
+        <div className={`min-h-screen transition-smooth flex items-center justify-center ${
+          darkMode 
+            ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
+            : 'bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50'
+        }`}>
+          <div className="container mx-auto px-4 py-8">
+            {showLogin ? (
+              <Login 
+                darkMode={darkMode} 
+                onSwitchToRegister={() => setShowLogin(false)}
+                onLoginSuccess={() => {}}
+              />
+            ) : (
+              <Register 
+                darkMode={darkMode} 
+                onSwitchToLogin={() => setShowLogin(true)}
+                onRegisterSuccess={() => setShowLogin(true)}
+              />
+            )}
+          </div>
+        </div>
+      </ToastProvider>
+    );
+  }
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <ToastProvider darkMode={darkMode}>
+        <div className={`min-h-screen transition-smooth flex items-center justify-center ${
+          darkMode 
+            ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
+            : 'bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50'
+        }`}>
+          <div className="text-center">
+            <div className={`animate-spin rounded-full h-12 w-12 border-4 mx-auto ${
+              darkMode ? 'border-indigo-500/30 border-t-indigo-400' : 'border-indigo-200 border-t-indigo-600'
+            }`}></div>
+            <p className={`mt-4 text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Loading...
+            </p>
+          </div>
+        </div>
+      </ToastProvider>
+    );
+  }
+
   return (
     <ToastProvider darkMode={darkMode}>
       <div className={`min-h-screen transition-smooth ${
@@ -53,9 +109,53 @@ function App() {
       }`}>
         <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          {/* Header with Dark Mode Toggle */}
+          {/* Header with Dark Mode Toggle and User Info */}
           <header className="text-center mb-8 relative">
-            <div className="absolute top-0 right-0">
+            <div className="absolute top-0 right-0 flex items-center gap-3">
+              {/* User Info */}
+              {user && (
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-xl ${
+                  darkMode ? 'bg-gray-700 text-gray-300' : 'bg-white text-gray-700 shadow-md'
+                }`}>
+                  <div className="text-right">
+                    <p className={`text-sm font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                      {user.firstName || user.email.split('@')[0]}
+                    </p>
+                    <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {user.email}
+                    </p>
+                  </div>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    darkMode ? 'bg-indigo-600' : 'bg-indigo-100'
+                  }`}>
+                    <span className={`text-sm font-semibold ${
+                      darkMode ? 'text-white' : 'text-indigo-700'
+                    }`}>
+                      {(user.firstName || user.email)[0].toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {/* Logout Button */}
+              {user && (
+                <button
+                  onClick={logout}
+                  className={`p-3 rounded-full transition-smooth hover-lift ${
+                    darkMode 
+                      ? 'bg-gray-700 text-red-400 hover:bg-gray-600' 
+                      : 'bg-white text-red-600 hover:bg-red-50 shadow-lg'
+                  }`}
+                  aria-label="Logout"
+                  title="Logout"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                </button>
+              )}
+              
+              {/* Dark Mode Toggle */}
               <button
                 onClick={() => setDarkMode(!darkMode)}
                 className={`p-3 rounded-full transition-smooth hover-lift ${
@@ -207,6 +307,14 @@ function App() {
       </div>
     </div>
     </ToastProvider>
+  )
+}
+
+function App() {
+  return (
+    <AuthProvider darkMode={false}>
+      <AppContent />
+    </AuthProvider>
   )
 }
 
