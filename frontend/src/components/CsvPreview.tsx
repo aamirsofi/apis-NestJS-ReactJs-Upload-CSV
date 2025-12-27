@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { CsvData } from "../types";
 import { exportCsvData } from '../services/api';
 import CustomDropdown from './CustomDropdown';
+import VirtualizedTable from './VirtualizedTable';
 
 interface CsvPreviewProps {
   data: CsvData;
@@ -20,6 +21,10 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset, darkMode = false
   const [exporting, setExporting] = useState(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(5); // Default to 5 so pagination shows more often
+  const [useVirtualization, setUseVirtualization] = useState<boolean>(false);
+  
+  // Use virtualization for datasets larger than 100 rows
+  const shouldUseVirtualization = data.data.length > 100;
 
   const sortedData = useMemo(() => {
     if (!sortConfig) return data.data;
@@ -170,6 +175,31 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset, darkMode = false
             </div>
           </div>
 
+      {/* Performance Mode Toggle */}
+      {shouldUseVirtualization && (
+        <div className={`mb-4 flex items-center justify-end gap-3 p-3 rounded-xl ${
+          darkMode ? 'bg-gray-800/50' : 'bg-gray-50'
+        }`}>
+          <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+            Performance Mode:
+          </span>
+          <button
+            onClick={() => setUseVirtualization(!useVirtualization)}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-smooth ${
+              useVirtualization
+                ? darkMode
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-indigo-600 text-white'
+                : darkMode
+                  ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            {useVirtualization ? 'Virtual Scrolling' : 'Pagination'}
+          </button>
+        </div>
+      )}
+
       {/* Data Table */}
       {data.data.length === 0 ? (
         <div className={`text-center py-12 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -177,6 +207,39 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset, darkMode = false
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
           </svg>
           <p className="text-lg">No data to display</p>
+        </div>
+      ) : shouldUseVirtualization && useVirtualization ? (
+        /* Virtual Scrolling Table */
+        <div className="rounded-xl border overflow-hidden">
+          {/* Custom Header with Sort */}
+          <div className={`flex items-center border-b-2 font-semibold sticky top-0 z-10 ${
+            darkMode
+              ? 'bg-gray-800 border-gray-700 text-gray-200'
+              : 'bg-gray-100 border-gray-300 text-gray-800'
+          }`}>
+            {headers.map((header) => (
+              <div
+                key={header}
+                onClick={() => handleSort(header)}
+                className="px-4 py-3 text-sm cursor-pointer hover:opacity-80 flex items-center gap-2"
+                style={{ width: 200, minWidth: 200 }}
+              >
+                <span>{header}</span>
+                {getSortIcon(header)}
+              </div>
+            ))}
+          </div>
+          <VirtualizedTable
+            data={sortedData}
+            columns={headers.map((header) => ({
+              key: header,
+              header: header,
+              width: 200,
+            }))}
+            height={500}
+            rowHeight={50}
+            darkMode={darkMode}
+          />
         </div>
       ) : (
         <>

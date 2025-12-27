@@ -1,9 +1,11 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { UploadHistoryResponse, UploadRecord, UploadStatus, CsvRow } from '../types';
 import { getUploadHistory, getUploadData, UploadHistoryFilters, downloadOriginalFile, bulkDeleteUploads, exportCsvData } from '../services/api';
 import CustomDropdown from './CustomDropdown';
 import CustomDatePicker from './CustomDatePicker';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useDebounce } from '../hooks/useDebounce';
+import { useCache } from '../hooks/useCache';
 
 interface UploadHistoryProps {
   onUploadClick?: (upload: UploadRecord) => void;
@@ -42,44 +44,32 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
   const [uploadData, setUploadData] = useState<CsvRow[] | null>(null);
   const [loadingData, setLoadingData] = useState(false);
 
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filter, searchQuery, startDate, endDate, fileSizeFilter]);
+  // Performance optimizations: Debouncing and Caching
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  const cache = useCache<UploadHistoryResponse>({ ttl: 2 * 60 * 1000 }); // 2 minutes cache
 
-  // Debounce search query to avoid too many API calls
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadHistory();
-    }, 500); // 500ms debounce
+  // Load all history (no filter) to get accurate total counts - with caching
+  const loadAllHistory = useCallback(async () => {
+    const cacheKey = 'all-history';
+    
+    // Check cache first
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      setAllHistory(cached);
+      return;
+    }
 
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    loadAllHistory(); // Always load all history for accurate counts
-    loadHistory(); // Load filtered history for display
-    // Refresh every 5 seconds to update processing status
-    const interval = setInterval(() => {
-      loadAllHistory();
-      loadHistory();
-    }, 5000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, startDate, endDate, fileSizeFilter, currentPage, pageSize]);
-
-  // Load all history (no filter) to get accurate total counts
-  const loadAllHistory = async () => {
     try {
       const data = await getUploadHistory(undefined); // Get all uploads
+      cache.set(cacheKey, data);
       setAllHistory(data);
     } catch (err) {
       // Silently fail - don't show error for this background call
     }
-  };
+  }, [cache]);
 
-  // Load filtered history for display
-  const loadHistory = async () => {
+  // Load filtered history for display - with caching and lazy loading
+  const loadHistory = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -91,9 +81,9 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
         filters.status = filter;
       }
       
-      // Search filter
-      if (searchQuery.trim()) {
-        filters.search = searchQuery.trim();
+      // Search filter (use debounced value)
+      if (debouncedSearchQuery.trim()) {
+        filters.search = debouncedSearchQuery.trim();
       }
       
       // Date range filters
@@ -127,7 +117,23 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
       filters.page = currentPage;
       filters.limit = pageSize;
       
+      // Create cache key from filters
+      const cacheKey = `history-${JSON.stringify(filters)}`;
+      
+      // Check cache first
+      const cached = cache.get(cacheKey);
+      if (cached) {
+        setHistory(cached);
+        setLoading(false);
+        return;
+      }
+      
+      // Fetch from API
       const data = await getUploadHistory(filters);
+      
+      // Cache the result
+      cache.set(cacheKey, data);
+      
       setHistory(data);
       setError(null);
     } catch (err) {
@@ -135,7 +141,26 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter, debouncedSearchQuery, startDate, endDate, fileSizeFilter, currentPage, pageSize, cache]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, debouncedSearchQuery, startDate, endDate, fileSizeFilter]);
+
+  // Load data when filters or pagination change
+  useEffect(() => {
+    loadAllHistory(); // Always load all history for accurate counts
+    loadHistory(); // Load filtered history for display
+    // Refresh every 5 seconds to update processing status
+    const interval = setInterval(() => {
+      // Clear cache before refresh to get fresh data
+      cache.clearExpired();
+      loadAllHistory();
+      loadHistory();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [filter, debouncedSearchQuery, startDate, endDate, fileSizeFilter, currentPage, pageSize, loadAllHistory, loadHistory, cache]);
 
   // Clear all filters
   const clearFilters = () => {
@@ -247,13 +272,30 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
     }
   };
 
+  // Cache for upload data
+  const dataCache = useCache<CsvRow[]>({ ttl: 10 * 60 * 1000 }); // 10 minutes cache for data
+
   const handleViewData = async (upload: UploadRecord, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click
     if (upload.status === UploadStatus.SUCCESS) {
       setSelectedUpload(upload);
+      
+      // Check cache first
+      const cacheKey = `upload-data-${upload.id}`;
+      const cachedData = dataCache.get(cacheKey);
+      
+      if (cachedData) {
+        setUploadData(cachedData);
+        setLoadingData(false);
+        return;
+      }
+      
+      // Lazy load data
       setLoadingData(true);
       try {
         const data = await getUploadData(upload.id);
+        // Cache the data
+        dataCache.set(cacheKey, data.data);
         setUploadData(data.data);
         setError(null);
       } catch (err) {
