@@ -325,7 +325,27 @@ const AuditLogs: React.FC<AuditLogsProps> = ({ darkMode = false }) => {
                       </div>
                     </td>
                     <td className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? 'text-gray-300' : 'text-gray-900'}`}>
-                      {log.fileName || <span className="opacity-50">-</span>}
+                      {log.fileName ? (
+                        <div className="flex flex-col">
+                          <span>{log.fileName}</span>
+                          {log.details?.fileNames && Array.isArray(log.details.fileNames) && log.details.fileNames.length > 1 && (
+                            <span className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                              +{log.details.fileNames.length - 1} more
+                            </span>
+                          )}
+                        </div>
+                      ) : log.details?.fileNames && Array.isArray(log.details.fileNames) && log.details.fileNames.length > 0 ? (
+                        <div className="flex flex-col">
+                          <span>{log.details.fileNames[0]}</span>
+                          {log.details.fileNames.length > 1 && (
+                            <span className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                              +{log.details.fileNames.length - 1} more file{log.details.fileNames.length - 1 !== 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="opacity-50">-</span>
+                      )}
                     </td>
                     <td className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? 'text-gray-300' : 'text-gray-900'}`}>
                       {log.userName || log.userEmail ? (

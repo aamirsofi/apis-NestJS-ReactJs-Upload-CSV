@@ -224,7 +224,7 @@ function AppContent() {
                     : 'bg-white text-gray-700 hover:bg-gray-50 shadow-md'
               }`}
             >
-              Upload History
+              Data Imports
             </button>
             <button
               onClick={() => {

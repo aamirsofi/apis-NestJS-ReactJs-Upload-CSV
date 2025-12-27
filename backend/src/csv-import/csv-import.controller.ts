@@ -758,6 +758,10 @@ export class CsvImportController {
       throw new BadRequestException('ids array is required and must not be empty');
     }
 
+    // Get file names before deletion for audit log
+    const uploadsToDelete = await this.uploadHistoryService.getUploadsByIds(ids);
+    const fileNames = uploadsToDelete.map(upload => upload.fileName).filter(Boolean);
+
     const deletedCount = await this.uploadHistoryService.deleteUploads(ids);
 
     // Log bulk delete action
@@ -765,9 +769,11 @@ export class CsvImportController {
       userId: user?.id,
       userIp: req?.ip || req?.socket?.remoteAddress,
       userAgent: req?.headers['user-agent'],
+      fileName: fileNames.length === 1 ? fileNames[0] : `${fileNames.length} files`,
       details: {
         deletedCount,
         uploadIds: ids,
+        fileNames: fileNames,
       },
       status: 'success',
     });

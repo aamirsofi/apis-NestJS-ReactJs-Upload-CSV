@@ -14,7 +14,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { UploadRecord } from '../interfaces/upload-record.interface';
 import { UploadStatus } from '../interfaces/upload-status.enum';
 import { CsvRow } from '../csv-import.service';
@@ -290,6 +290,22 @@ export class UploadHistoryService {
       select: ['id', 'originalFile', 'fileName'],
     });
     return record?.originalFile;
+  }
+
+  /**
+   * getUploadsByIds - Retrieves multiple upload records by IDs
+   *
+   * @param ids - Array of upload record IDs
+   * @returns Array of upload records
+   */
+  async getUploadsByIds(ids: string[]): Promise<UploadRecord[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+    const records = await this.uploadRepository.find({
+      where: { id: In(ids) },
+    });
+    return records.map((record) => this.entityToInterface(record));
   }
 
   /**

@@ -254,6 +254,69 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
+  // Toggle selection for a single upload
+  const toggleSelection = (uploadId: string) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(uploadId)) {
+        newSet.delete(uploadId);
+      } else {
+        newSet.add(uploadId);
+      }
+      return newSet;
+    });
+  };
+
+  // Toggle select all on current page
+  const toggleSelectAll = () => {
+    if (!history) return;
+    const allSelected = history.uploads.every(upload => selectedIds.has(upload.id));
+    if (allSelected) {
+      // Deselect all on current page
+      setSelectedIds(prev => {
+        const newSet = new Set(prev);
+        history.uploads.forEach(upload => newSet.delete(upload.id));
+        return newSet;
+      });
+    } else {
+      // Select all on current page
+      setSelectedIds(prev => {
+        const newSet = new Set(prev);
+        history.uploads.forEach(upload => newSet.add(upload.id));
+        return newSet;
+      });
+    }
+  };
+
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) {
+      showInfo('Please select at least one upload to delete');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete ${selectedIds.size} upload(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      const idsArray = Array.from(selectedIds);
+      await bulkDeleteUploads(idsArray);
+      showSuccess(`Successfully deleted ${idsArray.length} upload(s)`);
+      setSelectedIds(new Set()); // Clear selection
+      // Refresh history
+      cache.clear();
+      await loadAllHistory();
+      await loadHistory();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete uploads';
+      showError(errorMessage);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const getStatusBadge = (status: UploadStatus) => {
     const baseClasses = 'px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2';
     switch (status) {
@@ -519,7 +582,7 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
           <h2 className={`text-3xl font-bold mb-2 ${
             darkMode ? 'text-gray-100' : 'text-gray-800'
           }`}>
-            Upload History
+            Data Imports
           </h2>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -635,12 +698,68 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
         </div>
       ) : (
         <>
+          {/* Bulk Actions Bar */}
+          {selectedIds.size > 0 && (
+            <div className={`mb-4 p-4 rounded-xl flex items-center justify-between ${
+              darkMode ? 'bg-indigo-500/20 border border-indigo-500/30' : 'bg-indigo-50 border border-indigo-200'
+            }`}>
+              <div className="flex items-center gap-3">
+                <span className={`text-sm font-semibold ${
+                  darkMode ? 'text-indigo-300' : 'text-indigo-800'
+                }`}>
+                  {selectedIds.size} upload{selectedIds.size !== 1 ? 's' : ''} selected
+                </span>
+              </div>
+              <button
+                onClick={handleBulkDelete}
+                disabled={deleting}
+                className={`px-4 py-2 rounded-xl font-semibold text-sm transition-smooth flex items-center gap-2 ${
+                  deleting
+                    ? darkMode
+                      ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : darkMode
+                      ? 'bg-red-600 text-white hover:bg-red-700'
+                      : 'bg-red-600 text-white hover:bg-red-700'
+                }`}
+              >
+                {deleting ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete Selected
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
           <div className="overflow-x-auto rounded-xl border overflow-hidden">
             <table className={`min-w-full divide-y ${
               darkMode ? 'divide-gray-700' : 'divide-gray-200'
             }`}>
               <thead className={darkMode ? 'bg-gray-800' : 'bg-gradient-to-r from-indigo-50 to-purple-50'}>
                 <tr>
+                  <th className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider ${
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={history && history.uploads.length > 0 && history.uploads.every(upload => selectedIds.has(upload.id))}
+                      onChange={toggleSelectAll}
+                      className={`w-4 h-4 rounded cursor-pointer ${
+                        darkMode ? 'bg-gray-700 border-gray-600 text-indigo-500' : 'border-gray-300 text-indigo-600'
+                      }`}
+                    />
+                  </th>
                   {['File Name', 'Status', 'Size', 'Rows', 'Uploaded At', 'Message', 'Actions'].map((header) => (
                     <th
                       key={header}
@@ -661,8 +780,18 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                     key={upload.id}
                     className={`transition-smooth ${
                       darkMode ? 'hover:bg-gray-800' : 'hover:bg-indigo-50/50'
-                    }`}
+                    } ${selectedIds.has(upload.id) ? darkMode ? 'bg-indigo-500/10' : 'bg-indigo-50' : ''}`}
                   >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(upload.id)}
+                        onChange={() => toggleSelection(upload.id)}
+                        className={`w-4 h-4 rounded cursor-pointer ${
+                          darkMode ? 'bg-gray-700 border-gray-600 text-indigo-500' : 'border-gray-300 text-indigo-600'
+                        }`}
+                      />
+                    </td>
                     <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
                       darkMode ? 'text-gray-200' : 'text-gray-900'
                     }`}>
