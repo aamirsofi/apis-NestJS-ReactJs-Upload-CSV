@@ -54,6 +54,7 @@ import { UploadStatus } from './interfaces/upload-status.enum';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ThrottleModerate, ThrottleLenient } from '../common/decorators/throttle.decorator';
 
 @ApiTags('csv-import') // Groups endpoints in Swagger docs
 @ApiBearerAuth('JWT-auth') // All endpoints require JWT authentication
@@ -84,6 +85,7 @@ export class CsvImportController {
    * 6. Returns parsed data or error
    */
   @Post('upload') // Handles POST requests to /csv-import/upload
+  @ThrottleModerate() // Moderate rate limit: 10 requests per minute
   @HttpCode(HttpStatus.OK) // Returns 200 status code (default for POST is 201)
   @UseInterceptors(FileInterceptor('file')) // Intercepts file upload, extracts file from 'file' field
   @ApiOperation({
@@ -287,6 +289,7 @@ export class CsvImportController {
    * Note: This route must be defined before 'history/:id' to avoid route conflicts
    */
   @Get('audit-logs')
+  @ThrottleLenient() // Lenient rate limit: 100 requests per minute
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Get audit logs',
@@ -407,6 +410,7 @@ export class CsvImportController {
    */
   @UseGuards(JwtAuthGuard)
   @Get('history') // Handles GET requests to /csv-import/history
+  @ThrottleLenient() // Lenient rate limit: 100 requests per minute
   @ApiOperation({
     summary: 'Get upload history with advanced filters',
     description:
@@ -539,6 +543,7 @@ export class CsvImportController {
    */
   @UseGuards(JwtAuthGuard)
   @Get('history/:id') // Handles GET requests to /csv-import/history/:id
+  @ThrottleLenient() // Lenient rate limit: 100 requests per minute
   @ApiOperation({
     summary: 'Get upload details by ID',
     description:
@@ -582,6 +587,7 @@ export class CsvImportController {
    * - Useful for viewing what was imported
    */
   @Get('history/:id/data') // Handles GET requests to /csv-import/history/:id/data
+  @ThrottleLenient() // Lenient rate limit: 100 requests per minute
   @ApiOperation({
     summary: 'Get CSV data for a successful upload',
     description:
@@ -651,6 +657,7 @@ export class CsvImportController {
    * Downloads the original CSV file
    */
   @Get('history/:id/download')
+  @ThrottleModerate() // Moderate rate limit: 10 requests per minute
   @ApiOperation({
     summary: 'Download original CSV file',
     description: 'Downloads the original CSV file that was uploaded.',
@@ -696,6 +703,7 @@ export class CsvImportController {
    * Exports CSV data to a downloadable CSV file
    */
   @Post('history/export')
+  @ThrottleModerate() // Moderate rate limit: 10 requests per minute
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Export CSV data',
@@ -759,6 +767,7 @@ export class CsvImportController {
    * Deletes multiple upload records
    */
   @Delete('history/bulk')
+  @ThrottleModerate() // Moderate rate limit: 10 requests per minute
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({

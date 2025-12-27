@@ -19,6 +19,10 @@ async function bootstrap() {
   // AppModule is the root module that contains all other modules
   const app = await NestFactory.create(AppModule);
 
+  // Enable trust proxy for correct IP detection behind reverse proxies/load balancers
+  // This is important for rate limiting to work correctly in production
+  app.set('trust proxy', true);
+
   // Enable CORS (Cross-Origin Resource Sharing)
   // This allows the frontend (running on different port) to make requests to this API
   app.enableCors({
@@ -46,7 +50,17 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('CSV Import API')
     .setDescription(
-      'A REST API for uploading, parsing, and managing CSV files. Provides endpoints for file upload, history tracking, and data retrieval.',
+      'A REST API for uploading, parsing, and managing CSV files. Provides endpoints for file upload, history tracking, and data retrieval.\n\n' +
+      '**Rate Limiting:**\n' +
+      '- Authentication endpoints: 5 requests per 15 minutes\n' +
+      '- File upload endpoints: 10 requests per minute\n' +
+      '- Read-only endpoints: 100 requests per minute\n' +
+      '- Default: 50 requests per minute\n\n' +
+      'Rate limit headers are included in all responses:\n' +
+      '- `X-RateLimit-Limit`: Maximum number of requests allowed\n' +
+      '- `X-RateLimit-Remaining`: Number of requests remaining\n' +
+      '- `X-RateLimit-Reset`: Time when the rate limit resets\n' +
+      '- `Retry-After`: Seconds to wait before retrying (when limit exceeded)',
     )
     .setVersion('1.0')
     .addTag('csv-import', 'CSV file import and management endpoints')

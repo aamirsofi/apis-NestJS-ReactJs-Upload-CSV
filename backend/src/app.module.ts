@@ -10,6 +10,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerBehindProxyGuard } from './common/guards/throttler-behind-proxy.guard';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CsvImportModule } from './csv-import/csv-import.module';
@@ -52,8 +55,29 @@ import { UserEntity } from './auth/entities/user.entity';
 
     // CsvImportModule - Our custom module for CSV import functionality
     CsvImportModule,
+
+    // ThrottlerModule - Rate limiting configuration
+    // Prevents API abuse by limiting the number of requests per time window
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => [
+        {
+          // Default rate limit: 100 requests per 60 seconds (1 minute)
+          ttl: configService.get<number>('THROTTLE_TTL', 60000), // Time window in milliseconds
+          limit: configService.get<number>('THROTTLE_LIMIT', 100), // Max requests per window
+        },
+      ],
+      inject: [ConfigService],
+    }),
   ],
   controllers: [AppController], // Controllers that handle HTTP requests
-  providers: [AppService], // Services that contain business logic
+  providers: [
+    AppService, // Services that contain business logic
+    // Apply ThrottlerGuard globally to all routes with rate limit headers
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerBehindProxyGuard,
+    },
+  ],
 })
 export class AppModule {}

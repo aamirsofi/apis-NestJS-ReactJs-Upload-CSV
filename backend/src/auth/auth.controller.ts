@@ -29,6 +29,7 @@ import { AuthResponseDto } from './dto/auth-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { ThrottleStrict, ThrottleLenient } from '../common/decorators/throttle.decorator';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -41,6 +42,7 @@ export class AuthController {
    */
   @Public()
   @Post('register')
+  @ThrottleStrict() // Strict rate limit: 5 requests per 15 minutes
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Register a new user',
@@ -65,6 +67,7 @@ export class AuthController {
    */
   @Public()
   @Post('login')
+  @ThrottleStrict() // Strict rate limit: 5 requests per 15 minutes
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Login user',
@@ -88,6 +91,7 @@ export class AuthController {
    * Get current authenticated user information
    */
   @Get('me')
+  @ThrottleLenient() // Lenient rate limit: 100 requests per minute
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({

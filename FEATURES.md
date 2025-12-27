@@ -224,11 +224,21 @@ This document tracks all features, enhancements, and improvements for the CSV Im
 - Access control for features
 - **Status:** Not Started
 
-#### 20. API Rate Limiting
+#### 20. API Rate Limiting ✅
 
-- Prevent API abuse
-- Rate limiting per user/IP
-- **Status:** Not Started
+- ✅ Prevent API abuse with configurable rate limits
+- ✅ Rate limiting per IP address (with proxy support)
+- ✅ Different rate limits for different endpoint types:
+  - Strict (5 requests per 15 minutes) for authentication endpoints
+  - Moderate (10 requests per minute) for file uploads and bulk operations
+  - Lenient (100 requests per minute) for read-only endpoints
+  - Default (50 requests per minute) for general endpoints
+- ✅ Rate limit headers in responses (X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset)
+- ✅ Retry-After header when rate limit exceeded
+- ✅ Proxy-aware IP detection (X-Forwarded-For header support)
+- ✅ Configurable via environment variables
+- ✅ Swagger documentation includes rate limit information
+- **Status:** ✅ Fully Implemented
 
 #### 21. Webhooks
 
@@ -320,9 +330,9 @@ This document tracks all features, enhancements, and improvements for the CSV Im
 
 ## 📊 Feature Statistics
 
-- **Completed:** 29+ features
+- **Completed:** 30+ features
 - **In Progress:** 0 features
-- **Planned:** 22+ features
+- **Planned:** 21+ features
 - **Total:** 51+ features
 
 ---
