@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { UploadHistoryResponse, UploadRecord, UploadStatus, CsvRow } from '../types';
 import { getUploadHistory, getUploadData, UploadHistoryFilters, downloadOriginalFile, bulkDeleteUploads, exportCsvData } from '../services/api';
 import CustomDropdown from './CustomDropdown';
@@ -169,17 +170,20 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
   }, [filter, debouncedSearchQuery, startDate, endDate, fileSizeFilter, currentPage, pageSize, loadAllHistory, loadHistory, cache]);
 
   // Clear all filters
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilter('all');
     setSearchQuery('');
     setStartDate('');
     setEndDate('');
     setFileSizeFilter('all');
     setCurrentPage(1);
-  };
+    setSortConfig(null); // Reset sorting
+    setSelectedIds(new Set()); // Clear any selected items
+    cache.clear(); // Clear cache to force fresh data load
+  }, [cache]);
 
-  // Check if any filters are active
-  const hasActiveFilters = filter !== 'all' || searchQuery.trim() || startDate || endDate || fileSizeFilter !== 'all';
+  // Check if any advanced filters are active (excluding status filter which is a primary view)
+  const hasActiveFilters = searchQuery.trim() || startDate || endDate || fileSizeFilter !== 'all';
 
   // Pagination handlers
   const goToPage = (page: number) => {
@@ -1009,10 +1013,21 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
         </>
       )}
 
-      {/* Modal for viewing CSV data */}
-      {selectedUpload && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 pt-8 pb-4 px-4 animate-fade-in overflow-y-auto">
-          <div className={`card-modern${darkMode ? '-dark' : ''} rounded-2xl shadow-2xl max-w-6xl w-full max-h-[85vh] flex flex-col transition-smooth mt-8`}>
+      {/* Modal for viewing CSV data - Rendered via Portal */}
+      {selectedUpload && createPortal(
+        <div 
+          className="fixed inset-0 z-[100] animate-fade-in"
+          onClick={closeModal}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          {/* Modal Container */}
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            {/* Modal Content */}
+            <div 
+              className={`relative card-modern${darkMode ? '-dark' : ''} rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col transition-smooth`}
+              onClick={(e) => e.stopPropagation()}
+            >
             <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 border-b ${
               darkMode ? 'border-gray-700' : 'border-gray-200'
             }`}>
@@ -1273,8 +1288,10 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                 </div>
               </div>
             )}
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Confirmation Dialog for Bulk Delete */}
