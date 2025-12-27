@@ -127,11 +127,16 @@ This document tracks all features, enhancements, and improvements for the CSV Im
 - Save column preferences
 - **Status:** Not Started
 
-#### 9. Full-Screen Data View
+#### 9. Full-Screen Data View ✅
 
-- Maximize modal to full screen
-- Better viewing experience for large datasets
-- **Status:** Not Started
+- ✅ Maximize modal to full screen
+- ✅ Better viewing experience for large datasets
+- ✅ Toggle button in modal header with expand/compress icons
+- ✅ F11 keyboard shortcut support for toggling full-screen
+- ✅ Responsive padding adjustments for full-screen mode
+- ✅ Smooth transitions between normal and full-screen modes
+- ✅ Auto-reset when modal closes
+- **Status:** ✅ Fully Implemented
 
 #### 10. Saved Filter Presets
 
@@ -315,9 +320,9 @@ This document tracks all features, enhancements, and improvements for the CSV Im
 
 ## 📊 Feature Statistics
 
-- **Completed:** 28+ features
+- **Completed:** 29+ features
 - **In Progress:** 0 features
-- **Planned:** 23+ features
+- **Planned:** 22+ features
 - **Total:** 51+ features
 
 ---

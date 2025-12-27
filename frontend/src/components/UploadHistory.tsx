@@ -48,6 +48,7 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
   const [selectedUpload, setSelectedUpload] = useState<UploadRecord | null>(null);
   const [uploadData, setUploadData] = useState<CsvRow[] | null>(null);
   const [loadingData, setLoadingData] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   // Performance optimizations: Debouncing and Caching
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
@@ -389,6 +390,7 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
     setModalSortConfig(null);
     setModalCurrentPage(1);
     setModalPageSize(10);
+    setIsFullScreen(false);
   };
 
   // Keyboard shortcut: Esc to close modal
@@ -399,6 +401,31 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
       }
     },
   });
+
+  // Keyboard shortcut: F11 to toggle full-screen
+  useEffect(() => {
+    if (!selectedUpload) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Don't trigger if user is typing in inputs
+      const target = event.target as HTMLElement;
+      const isInputFocused =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        target.closest('[contenteditable="true"]');
+
+      if (event.key === 'F11' && !isInputFocused) {
+        event.preventDefault();
+        setIsFullScreen(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedUpload]);
 
   // Modal data sorting and pagination
   const sortedModalData = useMemo(() => {
@@ -1022,13 +1049,17 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           {/* Modal Container */}
-          <div className="absolute inset-0 flex items-center justify-center p-4">
+          <div className={`absolute inset-0 flex items-center justify-center ${isFullScreen ? '' : 'p-4'}`}>
             {/* Modal Content */}
             <div 
-              className={`relative card-modern${darkMode ? '-dark' : ''} rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col transition-smooth`}
+              className={`relative card-modern${darkMode ? '-dark' : ''} rounded-2xl shadow-2xl flex flex-col transition-all duration-300 ${
+                isFullScreen 
+                  ? 'w-full h-full rounded-none' 
+                  : 'max-w-6xl w-full max-h-[90vh]'
+              }`}
               onClick={(e) => e.stopPropagation()}
             >
-            <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 border-b ${
+            <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${isFullScreen ? 'p-8' : 'p-6'} border-b ${
               darkMode ? 'border-gray-700' : 'border-gray-200'
             }`}>
               <div className="flex-1 min-w-0 pr-4">
@@ -1069,6 +1100,25 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                   )}
                 </button>
                 <button
+                  onClick={() => setIsFullScreen(!isFullScreen)}
+                  title={isFullScreen ? "Exit Full Screen (F11)" : "Enter Full Screen (F11)"}
+                  className={`p-2 rounded-xl transition-smooth flex-shrink-0 ${
+                    darkMode
+                      ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {isFullScreen ? (
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                  )}
+                </button>
+                <button
                   onClick={closeModal}
                   title="Close (Esc)"
                   className={`p-2 rounded-xl transition-smooth flex-shrink-0 ${
@@ -1083,7 +1133,7 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-auto p-6">
+            <div className={`flex-1 overflow-auto ${isFullScreen ? 'p-8' : 'p-6'}`}>
               {loadingData ? (
                 <div className="flex flex-col justify-center items-center py-12">
                   <div className="relative">
@@ -1160,7 +1210,7 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
 
             {/* Pagination Controls for Modal - Outside scrollable area */}
             {uploadData && uploadData.length > 0 && (
-              <div className={`px-6 py-4 border-t ${
+              <div className={`${isFullScreen ? 'px-8 py-6' : 'px-6 py-4'} border-t ${
                 darkMode ? 'border-gray-700' : 'border-gray-200'
               }`}>
                 <div className={`flex flex-col sm:flex-row items-center justify-between gap-4 ${
