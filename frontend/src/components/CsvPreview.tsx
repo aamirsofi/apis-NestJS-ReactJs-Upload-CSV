@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { CsvData } from "../types";
 import { exportCsvData } from '../services/api';
+import CustomDropdown from './CustomDropdown';
 
 interface CsvPreviewProps {
   data: CsvData;
@@ -246,55 +247,53 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset, darkMode = false
               )}
             </div>
 
-            {/* Page Size Selector */}
-            <div className="flex items-center gap-2">
-              <label className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            {/* Page Size Selector - Modern Design */}
+            <div className="flex items-center gap-3">
+              <label className={`text-sm font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
                 Per page:
               </label>
-              <select
+              <CustomDropdown
+                options={[
+                  { value: 5, label: '5' },
+                  { value: 10, label: '10' },
+                  { value: 20, label: '20' },
+                  { value: 50, label: '50' },
+                  { value: 100, label: '100' },
+                ]}
                 value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
+                onChange={(value) => {
+                  setPageSize(Number(value));
                   setCurrentPage(1);
                 }}
-                className={`px-3 py-1.5 rounded-lg border text-sm transition-smooth ${
-                  darkMode
-                    ? 'bg-gray-900 border-gray-700 text-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
-                    : 'bg-white border-gray-300 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
-                }`}
-              >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
+                darkMode={darkMode}
+                className="w-auto min-w-[100px]"
+              />
             </div>
 
-            {/* Pagination Buttons - Show when multiple pages */}
+            {/* Pagination Buttons - Modern Trending Design */}
             {totalPages > 1 ? (
-              <div className="flex items-center gap-2">
-              {/* Previous Button */}
+              <div className="flex items-center gap-1.5">
+              {/* Previous Button - Modern pill shape */}
               <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className={`px-3 py-2 rounded-lg transition-smooth flex items-center gap-1 text-sm font-medium ${
+                className={`px-4 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-2 text-sm font-semibold ${
                   currentPage > 1
                     ? darkMode
-                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                      ? 'bg-gray-800/60 text-gray-200 hover:bg-gray-700 hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20 border border-gray-700'
+                      : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20 border border-gray-200'
                     : darkMode
-                      ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
-                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      ? 'bg-gray-800/30 text-gray-600 cursor-not-allowed opacity-50'
+                      : 'bg-gray-100/50 text-gray-400 cursor-not-allowed opacity-50'
                 }`}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
-                Previous
+                <span className="hidden sm:inline">Prev</span>
               </button>
 
-              {/* Page Numbers */}
+              {/* Page Numbers - Modern pill design */}
               <div className="flex items-center gap-1">
                 {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
                   let pageNum: number;
@@ -313,14 +312,14 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset, darkMode = false
                     <button
                       key={pageNum}
                       onClick={() => setCurrentPage(pageNum)}
-                      className={`px-3 py-2 rounded-lg transition-smooth text-sm font-medium ${
+                      className={`min-w-[40px] h-10 rounded-xl transition-all duration-200 text-sm font-semibold ${
                         isActive
                           ? darkMode
-                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/50'
-                            : 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/50 scale-110 ring-2 ring-indigo-400/50'
+                            : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 scale-110 ring-2 ring-indigo-300/50'
                           : darkMode
-                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                            ? 'bg-gray-800/40 text-gray-300 hover:bg-gray-700 hover:scale-105 hover:shadow-md border border-gray-700/50'
+                            : 'bg-white/60 backdrop-blur-sm text-gray-700 hover:bg-white hover:scale-105 hover:shadow-md border border-gray-200'
                       }`}
                     >
                       {pageNum}
@@ -329,25 +328,25 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset, darkMode = false
                 })}
               </div>
 
-              {/* Next Button */}
+              {/* Next Button - Modern pill shape */}
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className={`px-3 py-2 rounded-lg transition-smooth flex items-center gap-1 text-sm font-medium ${
+                className={`px-4 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-2 text-sm font-semibold ${
                   currentPage < totalPages
                     ? darkMode
-                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                      ? 'bg-gray-800/60 text-gray-200 hover:bg-gray-700 hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20 border border-gray-700'
+                      : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20 border border-gray-200'
                     : darkMode
-                      ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
-                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      ? 'bg-gray-800/30 text-gray-600 cursor-not-allowed opacity-50'
+                      : 'bg-gray-100/50 text-gray-400 cursor-not-allowed opacity-50'
                 }`}
               >
-                Next
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
+                <span className="hidden sm:inline">Next</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
               </div>
             ) : (
               <div className={`text-xs px-3 py-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>

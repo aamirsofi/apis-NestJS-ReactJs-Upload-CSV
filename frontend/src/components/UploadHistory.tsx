@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { UploadHistoryResponse, UploadRecord, UploadStatus, CsvRow } from '../types';
 import { getUploadHistory, getUploadData, UploadHistoryFilters, downloadOriginalFile, bulkDeleteUploads, exportCsvData } from '../services/api';
+import CustomDropdown from './CustomDropdown';
+import CustomDatePicker from './CustomDatePicker';
 
 interface UploadHistoryProps {
   onUploadClick?: (upload: UploadRecord) => void;
@@ -223,7 +225,7 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
   };
 
   const getStatusBadge = (status: UploadStatus) => {
-    const baseClasses = 'px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2';
+    const baseClasses = 'px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2';
     switch (status) {
       case UploadStatus.SUCCESS:
         return darkMode
@@ -359,91 +361,79 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
         darkMode ? 'bg-gray-800/50 border border-gray-700' : 'bg-gray-50 border border-gray-200'
       }`}>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          {/* Search Input - Compact */}
+          {/* Search Input - Modern Design */}
           <div className="flex-1 min-w-0">
-            <div className="relative">
+            <div className="relative group">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search filename..."
-                className={`w-full px-4 py-2 pl-10 pr-10 rounded-xl border transition-smooth text-sm ${
+                className={`w-full px-5 py-3 pl-12 pr-12 rounded-xl border-2 text-sm font-bold transition-all duration-300 ${
                   darkMode
-                    ? 'bg-gray-900 border-gray-700 text-gray-200 placeholder-gray-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                    ? 'bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-xl border-indigo-500/50 text-gray-100 placeholder-gray-500 hover:border-indigo-400 hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/30 shadow-[0_4px_15px_rgba(0,0,0,0.3)]'
+                    : 'bg-gradient-to-br from-white to-gray-50/90 backdrop-blur-xl border-indigo-400/60 text-gray-900 placeholder-gray-400 hover:border-indigo-500 hover:shadow-[0_4px_20px_rgba(99,102,241,0.3)] focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 shadow-[0_4px_15px_rgba(99,102,241,0.15)]'
                 }`}
               />
               <svg
-                className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
-                  darkMode ? 'text-gray-500' : 'text-gray-400'
+                className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${
+                  darkMode ? 'text-indigo-400 group-focus-within:text-indigo-300' : 'text-indigo-600 group-focus-within:text-indigo-500'
                 }`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                strokeWidth={2.5}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${
+                  className={`absolute right-4 top-1/2 transform -translate-y-1/2 transition-all duration-200 hover:scale-110 ${
                     darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'
                   }`}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               )}
             </div>
           </div>
 
-          {/* Start Date */}
+          {/* Start Date - Custom Modern Date Picker */}
           <div className="w-full sm:w-auto">
-            <input
-              type="date"
+            <CustomDatePicker
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className={`w-full sm:w-auto px-3 py-2 rounded-xl border transition-smooth text-sm ${
-                darkMode
-                  ? 'bg-gray-900 border-gray-700 text-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
-                  : 'bg-white border-gray-300 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
-              }`}
+              onChange={setStartDate}
               placeholder="Start Date"
+              darkMode={darkMode}
             />
           </div>
 
-          {/* End Date */}
+          {/* End Date - Custom Modern Date Picker */}
           <div className="w-full sm:w-auto">
-            <input
-              type="date"
+            <CustomDatePicker
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className={`w-full sm:w-auto px-3 py-2 rounded-xl border transition-smooth text-sm ${
-                darkMode
-                  ? 'bg-gray-900 border-gray-700 text-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
-                  : 'bg-white border-gray-300 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
-              }`}
+              onChange={setEndDate}
               placeholder="End Date"
+              darkMode={darkMode}
             />
           </div>
 
-          {/* File Size Filter */}
-          <div className="w-full sm:w-auto sm:min-w-[140px]">
-            <select
+          {/* File Size Filter - Modern Custom Dropdown */}
+          <div className="w-full sm:w-auto sm:min-w-[160px]">
+            <CustomDropdown
+              options={[
+                { value: 'all', label: 'All Sizes' },
+                { value: 'small', label: 'Small (< 100 KB)' },
+                { value: 'medium', label: 'Medium (100 KB - 5 MB)' },
+                { value: 'large', label: 'Large (> 5 MB)' },
+              ]}
               value={fileSizeFilter}
-              onChange={(e) => setFileSizeFilter(e.target.value)}
-              className={`w-full sm:w-auto px-3 py-2 rounded-xl border transition-smooth text-sm ${
-                darkMode
-                  ? 'bg-gray-900 border-gray-700 text-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
-                  : 'bg-white border-gray-300 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
-              }`}
-            >
-              <option value="all">All Sizes</option>
-              <option value="small">Small (&lt; 100 KB)</option>
-              <option value="medium">Medium (100 KB - 5 MB)</option>
-              <option value="large">Large (&gt; 5 MB)</option>
-            </select>
+              onChange={(value) => setFileSizeFilter(value as string)}
+              darkMode={darkMode}
+            />
           </div>
 
           {/* Clear Filters Button */}
@@ -548,7 +538,7 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                 {getIcon()}
                 <span>{filterValue === 'all' ? 'All' : formatStatus(filterValue)}</span>
                 {history && (
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                  <span className={`px-2 py-0.5 rounded-xl text-xs font-bold ${
                     isActive
                       ? darkMode
                         ? 'bg-white/20 text-white'
@@ -681,13 +671,18 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                       {upload.status === UploadStatus.SUCCESS && (
                         <button
                           onClick={(e) => handleViewData(upload, e)}
-                          className={`px-4 py-2 rounded-xl font-semibold transition-smooth hover-lift ${
+                          className={`group relative px-6 py-3 rounded-xl font-bold text-sm transition-all duration-300 flex items-center gap-2.5 overflow-hidden ${
                             darkMode
-                              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-lg shadow-indigo-500/50'
-                              : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-lg shadow-indigo-500/30'
+                              ? 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white shadow-[0_0_20px_rgba(99,102,241,0.5)] hover:shadow-[0_0_30px_rgba(99,102,241,0.8)] hover:scale-110 ring-2 ring-indigo-400/50'
+                              : 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white shadow-[0_4px_20px_rgba(99,102,241,0.4)] hover:shadow-[0_8px_30px_rgba(99,102,241,0.6)] hover:scale-110 ring-2 ring-indigo-300/50'
                           }`}
                         >
-                          View Data
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                          <svg className="w-5 h-5 relative z-10 transform group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                          </svg>
+                          <span className="relative z-10">View Data</span>
                         </button>
                       )}
                     </td>
@@ -715,60 +710,58 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                     )}
                   </div>
 
-                  {/* Page Size Selector */}
-                  <div className="flex items-center gap-2">
-                    <label className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {/* Page Size Selector - Modern Design */}
+                  <div className="flex items-center gap-3">
+                    <label className={`text-sm font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
                       Per page:
                     </label>
-                    <select
+                    <CustomDropdown
+                      options={[
+                        { value: 5, label: '5' },
+                        { value: 10, label: '10' },
+                        { value: 20, label: '20' },
+                        { value: 50, label: '50' },
+                        { value: 100, label: '100' },
+                      ]}
                       value={pageSize}
-                      onChange={(e) => {
-                        setPageSize(Number(e.target.value));
+                      onChange={(value) => {
+                        setPageSize(Number(value));
                         setCurrentPage(1);
                       }}
-                      className={`px-3 py-1.5 rounded-lg border text-sm transition-smooth ${
-                        darkMode
-                          ? 'bg-gray-900 border-gray-700 text-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
-                          : 'bg-white border-gray-300 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
-                      }`}
-                    >
-                      <option value={5}>5</option>
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
+                      darkMode={darkMode}
+                      className="w-auto min-w-[100px]"
+                    />
                   </div>
 
-                  {/* Pagination Buttons - Show when multiple pages */}
+                  {/* Pagination Buttons - Modern Trending Design */}
                   {history.totalPages > 1 ? (
-                    <div className="flex items-center gap-2">
-                      {/* Previous Button */}
+                    <div className="flex items-center gap-1.5">
+                      {/* Previous Button - Modern pill shape */}
                       <button
                         onClick={goToPreviousPage}
                         disabled={!history.hasPreviousPage}
-                        className={`px-3 py-2 rounded-lg transition-smooth flex items-center gap-1 text-sm font-medium ${
+                        className={`px-4 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-2 text-sm font-semibold ${
                           history.hasPreviousPage
                             ? darkMode
-                              ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                              : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                              ? 'bg-gray-800/60 text-gray-200 hover:bg-gray-700 hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20 border border-gray-700'
+                              : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20 border border-gray-200'
                             : darkMode
-                              ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              ? 'bg-gray-800/30 text-gray-600 cursor-not-allowed opacity-50'
+                              : 'bg-gray-100/50 text-gray-400 cursor-not-allowed opacity-50'
                         }`}
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                         </svg>
-                        Previous
+                        <span className="hidden sm:inline">Prev</span>
                       </button>
 
-                      {/* Page Numbers */}
+                      {/* Page Numbers - Modern pill design */}
                       <div className="flex items-center gap-1">
                         {getPageNumbers().map((page, index) => {
                           if (page === '...') {
                             return (
-                              <span key={`ellipsis-${index}`} className={`px-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                              <span key={`ellipsis-${index}`} className={`px-3 py-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'} font-medium`}>
                                 ...
                               </span>
                             );
@@ -779,14 +772,14 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                             <button
                               key={pageNum}
                               onClick={() => goToPage(pageNum)}
-                              className={`px-3 py-2 rounded-lg transition-smooth text-sm font-medium ${
+                              className={`min-w-[40px] h-10 rounded-xl transition-all duration-200 text-sm font-semibold ${
                                 isActive
                                   ? darkMode
-                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/50'
-                                    : 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/50 scale-110 ring-2 ring-indigo-400/50'
+                                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 scale-110 ring-2 ring-indigo-300/50'
                                   : darkMode
-                                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                    : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                                    ? 'bg-gray-800/40 text-gray-300 hover:bg-gray-700 hover:scale-105 hover:shadow-md border border-gray-700/50'
+                                    : 'bg-white/60 backdrop-blur-sm text-gray-700 hover:bg-white hover:scale-105 hover:shadow-md border border-gray-200'
                               }`}
                             >
                               {pageNum}
@@ -795,23 +788,23 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                         })}
                       </div>
 
-                      {/* Next Button */}
+                      {/* Next Button - Modern pill shape */}
                       <button
                         onClick={goToNextPage}
                         disabled={!history.hasNextPage}
-                        className={`px-3 py-2 rounded-lg transition-smooth flex items-center gap-1 text-sm font-medium ${
+                        className={`px-4 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-2 text-sm font-semibold ${
                           history.hasNextPage
                             ? darkMode
-                              ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                              : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                              ? 'bg-gray-800/60 text-gray-200 hover:bg-gray-700 hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20 border border-gray-700'
+                              : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20 border border-gray-200'
                             : darkMode
-                              ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              ? 'bg-gray-800/30 text-gray-600 cursor-not-allowed opacity-50'
+                              : 'bg-gray-100/50 text-gray-400 cursor-not-allowed opacity-50'
                         }`}
                       >
-                        Next
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        <span className="hidden sm:inline">Next</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                         </svg>
                       </button>
                     </div>
@@ -978,55 +971,53 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                     )}
                   </div>
 
-                  {/* Page Size Selector */}
-                  <div className="flex items-center gap-2">
-                    <label className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {/* Page Size Selector - Modern Design */}
+                  <div className="flex items-center gap-3">
+                    <label className={`text-sm font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
                       Per page:
                     </label>
-                    <select
+                    <CustomDropdown
+                      options={[
+                        { value: 5, label: '5' },
+                        { value: 10, label: '10' },
+                        { value: 20, label: '20' },
+                        { value: 50, label: '50' },
+                        { value: 100, label: '100' },
+                      ]}
                       value={modalPageSize}
-                      onChange={(e) => {
-                        setModalPageSize(Number(e.target.value));
+                      onChange={(value) => {
+                        setModalPageSize(Number(value));
                         setModalCurrentPage(1);
                       }}
-                      className={`px-3 py-1.5 rounded-lg border text-sm transition-smooth ${
-                        darkMode
-                          ? 'bg-gray-900 border-gray-700 text-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
-                          : 'bg-white border-gray-300 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
-                      }`}
-                    >
-                      <option value={5}>5</option>
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
+                      darkMode={darkMode}
+                      className="w-auto min-w-[100px]"
+                    />
                   </div>
 
-                  {/* Pagination Buttons - Show when there are multiple pages */}
+                  {/* Pagination Buttons - Modern Trending Design */}
                   {modalTotalPages > 1 ? (
-                    <div className="flex items-center gap-2">
-                      {/* Previous Button */}
+                    <div className="flex items-center gap-1.5">
+                      {/* Previous Button - Modern pill shape */}
                       <button
                         onClick={() => setModalCurrentPage(prev => Math.max(1, prev - 1))}
                         disabled={modalCurrentPage === 1}
-                        className={`px-3 py-2 rounded-lg transition-smooth flex items-center gap-1 text-sm font-medium ${
+                        className={`px-4 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-2 text-sm font-semibold ${
                           modalCurrentPage > 1
                             ? darkMode
-                              ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                              : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                              ? 'bg-gray-800/60 text-gray-200 hover:bg-gray-700 hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20 border border-gray-700'
+                              : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20 border border-gray-200'
                             : darkMode
-                              ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              ? 'bg-gray-800/30 text-gray-600 cursor-not-allowed opacity-50'
+                              : 'bg-gray-100/50 text-gray-400 cursor-not-allowed opacity-50'
                         }`}
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                         </svg>
-                        Previous
+                        <span className="hidden sm:inline">Prev</span>
                       </button>
 
-                      {/* Page Numbers */}
+                      {/* Page Numbers - Modern pill design */}
                       <div className="flex items-center gap-1">
                         {Array.from({ length: Math.min(7, modalTotalPages) }, (_, i) => {
                           let pageNum: number;
@@ -1045,14 +1036,14 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                             <button
                               key={pageNum}
                               onClick={() => setModalCurrentPage(pageNum)}
-                              className={`px-3 py-2 rounded-lg transition-smooth text-sm font-medium ${
+                              className={`min-w-[40px] h-10 rounded-xl transition-all duration-200 text-sm font-semibold ${
                                 isActive
                                   ? darkMode
-                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/50'
-                                    : 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/50 scale-110 ring-2 ring-indigo-400/50'
+                                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 scale-110 ring-2 ring-indigo-300/50'
                                   : darkMode
-                                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                    : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                                    ? 'bg-gray-800/40 text-gray-300 hover:bg-gray-700 hover:scale-105 hover:shadow-md border border-gray-700/50'
+                                    : 'bg-white/60 backdrop-blur-sm text-gray-700 hover:bg-white hover:scale-105 hover:shadow-md border border-gray-200'
                               }`}
                             >
                               {pageNum}
@@ -1061,23 +1052,23 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                         })}
                       </div>
 
-                      {/* Next Button */}
+                      {/* Next Button - Modern pill shape */}
                       <button
                         onClick={() => setModalCurrentPage(prev => Math.min(modalTotalPages, prev + 1))}
                         disabled={modalCurrentPage === modalTotalPages}
-                        className={`px-3 py-2 rounded-lg transition-smooth flex items-center gap-1 text-sm font-medium ${
+                        className={`px-4 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-2 text-sm font-semibold ${
                           modalCurrentPage < modalTotalPages
                             ? darkMode
-                              ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                              : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                              ? 'bg-gray-800/60 text-gray-200 hover:bg-gray-700 hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20 border border-gray-700'
+                              : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20 border border-gray-200'
                             : darkMode
-                              ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              ? 'bg-gray-800/30 text-gray-600 cursor-not-allowed opacity-50'
+                              : 'bg-gray-100/50 text-gray-400 cursor-not-allowed opacity-50'
                         }`}
                       >
-                        Next
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        <span className="hidden sm:inline">Next</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                         </svg>
                       </button>
                     </div>
