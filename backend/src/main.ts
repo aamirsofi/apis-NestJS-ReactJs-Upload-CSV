@@ -45,7 +45,19 @@ async function bootstrap() {
     )
     .setVersion('1.0')
     .addTag('csv-import', 'CSV file import and management endpoints')
+    .addTag('auth', 'Authentication endpoints')
     .addTag('health', 'Health check endpoints')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth', // This name here is important for matching up with @ApiBearerAuth() in your controller!
+    )
     .build();
 
   // Generate Swagger documentation from the application

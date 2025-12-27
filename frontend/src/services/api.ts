@@ -7,6 +7,34 @@ const api = axios.create({
   baseURL: API_BASE_URL,
 });
 
+// Add request interceptor to include auth token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  },
+);
+
+// Add response interceptor to handle auth errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid - clear auth and redirect to login
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  },
+);
+
 export interface DuplicateDetectionOptions {
   detectDuplicates?: boolean;
   duplicateColumns?: string[];
@@ -241,6 +269,102 @@ export const getAuditLogs = async (filters?: AuditLogFilters): Promise<AuditLogs
     }
     throw new Error('An unexpected error occurred');
   }
+};
+
+// Authentication API functions
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  user: {
+    id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+  };
+}
+
+export interface User {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+}
+
+export const register = async (data: RegisterRequest): Promise<AuthResponse> => {
+  try {
+    const response = await api.post<AuthResponse>('/auth/register', data);
+    // Store token and user info
+    localStorage.setItem('authToken', response.data.accessToken);
+    localStorage.setItem('user', JSON.stringify(response.data.user));
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message || 'Registration failed';
+      throw new Error(message);
+    }
+    throw new Error('An unexpected error occurred');
+  }
+};
+
+export const login = async (data: LoginRequest): Promise<AuthResponse> => {
+  try {
+    const response = await api.post<AuthResponse>('/auth/login', data);
+    // Store token and user info
+    localStorage.setItem('authToken', response.data.accessToken);
+    localStorage.setItem('user', JSON.stringify(response.data.user));
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message || 'Login failed';
+      throw new Error(message);
+    }
+    throw new Error('An unexpected error occurred');
+  }
+};
+
+export const logout = () => {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('user');
+};
+
+export const getCurrentUser = async (): Promise<User> => {
+  try {
+    const response = await api.get<User>('/auth/me');
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message || 'Failed to get user';
+      throw new Error(message);
+    }
+    throw new Error('An unexpected error occurred');
+  }
+};
+
+export const getStoredUser = (): User | null => {
+  const userStr = localStorage.getItem('user');
+  if (userStr) {
+    try {
+      return JSON.parse(userStr);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
+export const isAuthenticated = (): boolean => {
+  return !!localStorage.getItem('authToken');
 };
 
 export default api;

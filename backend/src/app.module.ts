@@ -13,8 +13,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CsvImportModule } from './csv-import/csv-import.module';
+import { AuthModule } from './auth/auth.module';
 import { UploadRecordEntity } from './csv-import/entities/upload-record.entity';
 import { AuditLogEntity } from './csv-import/entities/audit-log.entity';
+import { UserEntity } from './auth/entities/user.entity';
 
 @Module({
   imports: [
@@ -35,7 +37,7 @@ import { AuditLogEntity } from './csv-import/entities/audit-log.entity';
         username: configService.get('DB_USERNAME', 'postgres'), // Database username
         password: configService.get('DB_PASSWORD', 'postgres'), // Database password
         database: configService.get('DB_NAME', 'csv_import'), // Database name
-        entities: [UploadRecordEntity, AuditLogEntity], // Database entities (tables) to use
+        entities: [UploadRecordEntity, AuditLogEntity, UserEntity], // Database entities (tables) to use
         synchronize: configService.get('NODE_ENV') !== 'production', // Auto-create/update tables in dev mode
         logging: configService.get('NODE_ENV') === 'development', // Log SQL queries in dev mode
       }),
@@ -43,7 +45,10 @@ import { AuditLogEntity } from './csv-import/entities/audit-log.entity';
     }),
 
     // TypeOrmModule.forFeature - Makes entities repository available in other modules
-    TypeOrmModule.forFeature([UploadRecordEntity, AuditLogEntity]),
+    TypeOrmModule.forFeature([UploadRecordEntity, AuditLogEntity, UserEntity]),
+
+    // AuthModule - Authentication and user management
+    AuthModule,
 
     // CsvImportModule - Our custom module for CSV import functionality
     CsvImportModule,
