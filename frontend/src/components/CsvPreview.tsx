@@ -15,13 +15,14 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset, darkMode = false
       <div className="flex justify-between items-center mb-6">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <div className={`p-2 rounded-lg ${
+            <div className={`p-3 rounded-xl transition-smooth hover:scale-110 ${
               darkMode 
-                ? 'bg-green-500/20' 
-                : 'bg-green-100'
+                ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20' 
+                : 'bg-gradient-to-br from-green-100 to-emerald-100'
             }`}>
-              <svg className={`w-6 h-6 ${darkMode ? 'text-green-400' : 'text-green-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              {/* Modern checkmark icon - filled style for better visibility */}
+              <svg className={`w-7 h-7 ${darkMode ? 'text-green-400' : 'text-green-600'}`} fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
             </div>
             <h2 className={`text-3xl font-bold ${
@@ -47,20 +48,21 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset, darkMode = false
       </div>
 
       {/* Success Message */}
-      <div className={`mb-6 p-5 rounded-xl border-l-4 ${
-        darkMode
-          ? 'bg-green-500/10 border-green-400'
-          : 'bg-green-50 border-green-400'
-      }`}>
-        <div className="flex items-center gap-3">
-          <svg className={`w-6 h-6 flex-shrink-0 ${darkMode ? 'text-green-400' : 'text-green-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p className={`font-semibold ${darkMode ? 'text-green-300' : 'text-green-800'}`}>
-            {data.message}
-          </p>
-        </div>
-      </div>
+          <div className={`mb-6 p-5 rounded-xl border-l-4 transition-smooth hover:shadow-lg ${
+            darkMode
+              ? 'bg-green-500/10 border-green-400'
+              : 'bg-green-50 border-green-400'
+          }`}>
+            <div className="flex items-center gap-3">
+              {/* Modern filled checkmark circle icon */}
+              <svg className={`w-6 h-6 flex-shrink-0 ${darkMode ? 'text-green-400' : 'text-green-600'}`} fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <p className={`font-semibold ${darkMode ? 'text-green-300' : 'text-green-800'}`}>
+                {data.message}
+              </p>
+            </div>
+          </div>
 
       {/* Data Table */}
       {data.data.length === 0 ? (

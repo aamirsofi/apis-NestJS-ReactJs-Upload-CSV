@@ -9,6 +9,7 @@ interface UploadHistoryProps {
 
 const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode = false }) => {
   const [history, setHistory] = useState<UploadHistoryResponse | null>(null);
+  const [allHistory, setAllHistory] = useState<UploadHistoryResponse | null>(null); // Store all uploads for accurate counts
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<UploadStatus | 'all'>('all');
@@ -17,12 +18,27 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
   const [loadingData, setLoadingData] = useState(false);
 
   useEffect(() => {
-    loadHistory();
+    loadAllHistory(); // Always load all history for accurate counts
+    loadHistory(); // Load filtered history for display
     // Refresh every 5 seconds to update processing status
-    const interval = setInterval(loadHistory, 5000);
+    const interval = setInterval(() => {
+      loadAllHistory();
+      loadHistory();
+    }, 5000);
     return () => clearInterval(interval);
   }, [filter]);
 
+  // Load all history (no filter) to get accurate total counts
+  const loadAllHistory = async () => {
+    try {
+      const data = await getUploadHistory(undefined); // Get all uploads
+      setAllHistory(data);
+    } catch (err) {
+      // Silently fail - don't show error for this background call
+    }
+  };
+
+  // Load filtered history for display
   const loadHistory = async () => {
     try {
       setLoading(true);
@@ -48,6 +64,11 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleString();
+  };
+
+  const formatStatus = (status: UploadStatus): string => {
+    // Capitalize first letter of status
+    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
   const getStatusBadge = (status: UploadStatus) => {
@@ -124,27 +145,6 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
           }`}>
             Upload History
           </h2>
-          {history && (
-            <div className={`flex flex-wrap gap-3 text-sm ${
-              darkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
-              <span className="flex items-center gap-1">
-                <span className="font-semibold">Total:</span> {history.total}
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                <span className="font-semibold">Success:</span> {history.success}
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                <span className="font-semibold">Failed:</span> {history.failed}
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
-                <span className="font-semibold">Processing:</span> {history.processing}
-              </span>
-            </div>
-          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {(['all', UploadStatus.SUCCESS, UploadStatus.FAILED, UploadStatus.PROCESSING] as const).map((filterValue) => {
@@ -157,24 +157,82 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                     : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30';
                 }
                 if (filterValue === UploadStatus.SUCCESS) {
-                  return darkMode ? 'bg-green-600 text-white' : 'bg-green-600 text-white';
+                  return darkMode ? 'bg-green-600 text-white shadow-lg shadow-green-500/50' : 'bg-green-600 text-white shadow-lg shadow-green-500/30';
                 }
                 if (filterValue === UploadStatus.FAILED) {
-                  return darkMode ? 'bg-red-600 text-white' : 'bg-red-600 text-white';
+                  return darkMode ? 'bg-red-600 text-white shadow-lg shadow-red-500/50' : 'bg-red-600 text-white shadow-lg shadow-red-500/30';
                 }
-                return darkMode ? 'bg-yellow-600 text-white' : 'bg-yellow-600 text-white';
+                return darkMode ? 'bg-yellow-600 text-white shadow-lg shadow-yellow-500/50' : 'bg-yellow-600 text-white shadow-lg shadow-yellow-500/30';
               }
               return darkMode
                 ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 : 'bg-white text-gray-700 hover:bg-gray-50 shadow-md';
             };
+            
+            const getIcon = () => {
+              if (filterValue === 'all') {
+                return (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                );
+              }
+              if (filterValue === UploadStatus.SUCCESS) {
+                return (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                );
+              }
+              if (filterValue === UploadStatus.FAILED) {
+                return (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                );
+              }
+              if (filterValue === UploadStatus.PROCESSING) {
+                return (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                );
+              }
+              return null;
+            };
+            
+            const getCount = () => {
+              // Use allHistory for accurate counts, fallback to history if allHistory not loaded yet
+              const source = allHistory || history;
+              if (!source) return 0;
+              if (filterValue === 'all') return source.total;
+              if (filterValue === UploadStatus.SUCCESS) return source.success;
+              if (filterValue === UploadStatus.FAILED) return source.failed;
+              if (filterValue === UploadStatus.PROCESSING) return source.processing;
+              return 0;
+            };
+            
             return (
               <button
                 key={filterValue}
                 onClick={() => setFilter(filterValue)}
-                className={`px-4 py-2 rounded-xl font-semibold transition-smooth hover-lift ${getButtonStyles()}`}
+                className={`px-4 py-2 rounded-xl font-semibold transition-smooth hover-lift flex items-center gap-2 ${getButtonStyles()}`}
               >
-                {filterValue === 'all' ? 'All' : filterValue.charAt(0).toUpperCase() + filterValue.slice(1)}
+                {getIcon()}
+                <span>{filterValue === 'all' ? 'All' : formatStatus(filterValue)}</span>
+                {history && (
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                    isActive
+                      ? darkMode
+                        ? 'bg-white/20 text-white'
+                        : 'bg-white/30 text-white'
+                      : darkMode
+                        ? 'bg-gray-600 text-gray-200'
+                        : 'bg-gray-200 text-gray-700'
+                  }`}>
+                    {getCount()}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -232,7 +290,8 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                     darkMode ? 'text-gray-200' : 'text-gray-900'
                   }`}>
                     <div className="flex items-center gap-2">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {/* Modern document icon with rounded style */}
+                      <svg className={`w-5 h-5 ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                       {upload.fileName}
@@ -241,21 +300,21 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={getStatusBadge(upload.status)}>
                       {upload.status === UploadStatus.SUCCESS && (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                         </svg>
                       )}
                       {upload.status === UploadStatus.FAILED && (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                         </svg>
                       )}
                       {upload.status === UploadStatus.PROCESSING && (
                         <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
                       )}
-                      {upload.status}
+                      {formatStatus(upload.status)}
                     </span>
                   </td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm ${

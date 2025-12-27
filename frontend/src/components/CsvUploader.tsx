@@ -91,22 +91,23 @@ const CsvUploader: React.FC<CsvUploaderProps> = ({
       >
         <input {...getInputProps()} />
         <div className="flex flex-col items-center">
-          {/* Modern Upload Icon */}
-          <div className={`mb-6 p-6 rounded-full ${
+          {/* Modern Upload Icon - Trendy 2025 Style */}
+          <div className={`mb-6 p-6 rounded-2xl transition-smooth hover:scale-110 ${
             darkMode 
-              ? 'bg-gradient-to-br from-indigo-500/20 to-purple-500/20' 
-              : 'bg-gradient-to-br from-indigo-100 to-purple-100'
+              ? 'bg-gradient-to-br from-indigo-500/20 via-purple-500/20 to-pink-500/20 backdrop-blur-sm' 
+              : 'bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100'
           }`}>
             <svg
-              className={`w-16 h-16 ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`}
+              className={`w-16 h-16 ${darkMode ? 'text-indigo-400' : 'text-indigo-600'} transition-transform duration-300`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
+              {/* Modern cloud upload icon with rounded style */}
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={1.5}
+                strokeWidth={2}
                 d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
               />
             </svg>
@@ -142,8 +143,9 @@ const CsvUploader: React.FC<CsvUploaderProps> = ({
                 or
               </p>
               <button className="group relative inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 hover:scale-105">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                {/* Modern plus icon with rounded corners */}
+                <svg className="w-5 h-5 transition-transform group-hover:rotate-90 duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                 </svg>
                 <span>Browse Files</span>
                 <div className="absolute inset-0 rounded-xl bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
