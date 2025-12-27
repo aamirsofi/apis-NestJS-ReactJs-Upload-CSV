@@ -1,30 +1,33 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { UploadRecord } from '../interfaces/upload-record.interface';
 import { UploadStatus } from '../interfaces/upload-status.enum';
 import { CsvRow } from '../csv-import.service';
+import { UploadRecordEntity } from '../entities/upload-record.entity';
 
 @Injectable()
 export class UploadHistoryService {
-  private uploads: Map<string, UploadRecord> = new Map();
-  private uploadsList: UploadRecord[] = [];
+  constructor(
+    @InjectRepository(UploadRecordEntity)
+    private readonly uploadRepository: Repository<UploadRecordEntity>,
+  ) {}
 
-  createUploadRecord(fileName: string, fileSize: number): UploadRecord {
-    const id = this.generateId();
-    const record: UploadRecord = {
-      id,
+  async createUploadRecord(
+    fileName: string,
+    fileSize: number,
+  ): Promise<UploadRecord> {
+    const record = this.uploadRepository.create({
       fileName,
       fileSize,
       status: UploadStatus.PROCESSING,
-      uploadedAt: new Date(),
-    };
+    });
 
-    this.uploads.set(id, record);
-    this.uploadsList.unshift(record); // Add to beginning for newest first
-
-    return record;
+    const saved = await this.uploadRepository.save(record);
+    return this.entityToInterface(saved);
   }
 
-  updateUploadStatus(
+  async updateUploadStatus(
     id: string,
     status: UploadStatus,
     data?: {
@@ -33,70 +36,75 @@ export class UploadHistoryService {
       message?: string;
       csvData?: CsvRow[];
     },
-  ): void {
-    const record = this.uploads.get(id);
-    if (record) {
-      record.status = status;
-      record.completedAt = new Date();
-      if (data) {
-        if (data.totalRows !== undefined) {
-          record.totalRows = data.totalRows;
-        }
-        if (data.errors) {
-          record.errors = data.errors;
-        }
-        if (data.message) {
-          record.message = data.message;
-        }
-        if (data.csvData) {
-          record.data = data.csvData;
-        }
+  ): Promise<void> {
+    const updateData: Partial<UploadRecordEntity> = {
+      status,
+      completedAt: new Date(),
+    };
+
+    if (data) {
+      if (data.totalRows !== undefined) {
+        updateData.totalRows = data.totalRows;
+      }
+      if (data.errors) {
+        updateData.errors = data.errors;
+      }
+      if (data.message) {
+        updateData.message = data.message;
+      }
+      if (data.csvData) {
+        updateData.data = data.csvData as Record<string, string>[];
       }
     }
+
+    await this.uploadRepository.update(id, updateData);
   }
 
-  getAllUploads(): UploadRecord[] {
-    // Sort: success first, processing middle, failed last - then by date (newest first) within each group
-    return [...this.uploadsList].sort((a, b) => {
-      // Define priority: SUCCESS = 0, PROCESSING = 1, FAILED = 2
-      const getPriority = (status: UploadStatus): number => {
-        switch (status) {
-          case UploadStatus.SUCCESS:
-            return 0;
-          case UploadStatus.PROCESSING:
-            return 1;
-          case UploadStatus.FAILED:
-            return 2;
-          default:
-            return 3;
-        }
-      };
+  async getAllUploads(): Promise<UploadRecord[]> {
+    // Get all records sorted by status priority and date
+    const records = await this.uploadRepository
+      .createQueryBuilder('upload')
+      .orderBy(
+        `CASE 
+          WHEN upload.status = 'success' THEN 0
+          WHEN upload.status = 'processing' THEN 1
+          WHEN upload.status = 'failed' THEN 2
+          ELSE 3
+        END`,
+        'ASC',
+      )
+      .addOrderBy('upload.uploadedAt', 'DESC')
+      .getMany();
 
-      const priorityA = getPriority(a.status);
-      const priorityB = getPriority(b.status);
+    return records.map((record) => this.entityToInterface(record));
+  }
 
-      // If priorities are different, sort by priority
-      if (priorityA !== priorityB) {
-        return priorityA - priorityB;
-      }
+  async getUploadById(id: string): Promise<UploadRecord | undefined> {
+    const record = await this.uploadRepository.findOne({ where: { id } });
+    return record ? this.entityToInterface(record) : undefined;
+  }
 
-      // If same priority, sort by date (newest first)
-      return b.uploadedAt.getTime() - a.uploadedAt.getTime();
+  async getUploadsByStatus(status: UploadStatus): Promise<UploadRecord[]> {
+    const records = await this.uploadRepository.find({
+      where: { status },
+      order: { uploadedAt: 'DESC' },
     });
+
+    return records.map((record) => this.entityToInterface(record));
   }
 
-  getUploadById(id: string): UploadRecord | undefined {
-    return this.uploads.get(id);
-  }
-
-  getUploadsByStatus(status: UploadStatus): UploadRecord[] {
-    // Sort by date (newest first) when filtering by status
-    return this.uploadsList
-      .filter((upload) => upload.status === status)
-      .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
-  }
-
-  private generateId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  private entityToInterface(entity: UploadRecordEntity): UploadRecord {
+    return {
+      id: entity.id,
+      fileName: entity.fileName,
+      fileSize: Number(entity.fileSize),
+      status: entity.status,
+      uploadedAt: entity.uploadedAt,
+      completedAt: entity.completedAt,
+      totalRows: entity.totalRows,
+      errors: entity.errors,
+      message: entity.message,
+      data: entity.data as CsvRow[] | undefined,
+    };
   }
 }

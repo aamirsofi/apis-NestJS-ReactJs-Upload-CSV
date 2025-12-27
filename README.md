@@ -27,6 +27,9 @@ A full-stack application for importing and processing CSV files, built with Nest
 
 - Node.js (v18 or higher)
 - npm or yarn
+- PostgreSQL (for data persistence)
+  - Download: https://www.postgresql.org/download/
+  - Or use Docker: `docker run --name postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres`
 
 ## Installation
 
@@ -43,6 +46,27 @@ cd backend
 ```bash
 npm install
 ```
+
+3. Set up PostgreSQL database:
+
+   - Create database: `CREATE DATABASE csv_import;`
+   - Or use Docker: `docker run --name postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres`
+
+4. Configure environment variables:
+
+   Create `.env` file in `backend/` directory:
+
+   ```env
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_USERNAME=postgres
+   DB_PASSWORD=postgres
+   DB_NAME=csv_import
+   PORT=3000
+   NODE_ENV=development
+   ```
+
+   See [DATABASE_SETUP.md](./backend/DATABASE_SETUP.md) for detailed database setup instructions.
 
 ### Frontend Setup
 
@@ -130,11 +154,13 @@ npm run preview
 The API includes automatic Swagger documentation for easy testing and exploration:
 
 **Access Swagger UI:**
+
 ```
 http://localhost:3000/api-docs
 ```
 
 **Features:**
+
 - 📖 Interactive API documentation
 - 🧪 Test endpoints directly from browser
 - 📋 View request/response schemas
@@ -143,9 +169,11 @@ http://localhost:3000/api-docs
 **For other developers:** Share the Swagger URL when the server is running.
 
 **OpenAPI JSON Specification:**
+
 ```
 http://localhost:3000/api-docs-json
 ```
+
 (Can be imported into Postman or other API clients)
 
 ---
@@ -193,6 +221,7 @@ GET /csv-import/history?status=processing
 ```
 
 **Query Parameters:**
+
 - `status` (optional): Filter by status (`success`, `failed`, `processing`)
 
 **Example using cURL:**
@@ -347,6 +376,7 @@ npm run lint          # linting
 ## Exposing APIs to Other Developers
 
 See [API_DOCUMENTATION.md](./backend/API_DOCUMENTATION.md) for detailed guide on:
+
 - How to share APIs with other developers
 - Swagger documentation access
 - Network access configuration

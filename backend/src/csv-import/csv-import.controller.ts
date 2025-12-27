@@ -78,7 +78,7 @@ export class CsvImportController {
     }
 
     // Create upload record
-    const uploadRecord = this.uploadHistoryService.createUploadRecord(
+    const uploadRecord = await this.uploadHistoryService.createUploadRecord(
       file.originalname,
       file.size,
     );
@@ -87,7 +87,7 @@ export class CsvImportController {
       const result = await this.csvImportService.parseCsv(file.buffer);
 
       // Update upload record with success and store CSV data
-      this.uploadHistoryService.updateUploadStatus(
+      await this.uploadHistoryService.updateUploadStatus(
         uploadRecord.id,
         UploadStatus.SUCCESS,
         {
@@ -106,7 +106,7 @@ export class CsvImportController {
       };
     } catch (error) {
       // Update upload record with failure
-      this.uploadHistoryService.updateUploadStatus(
+      await this.uploadHistoryService.updateUploadStatus(
         uploadRecord.id,
         UploadStatus.FAILED,
         {
@@ -139,11 +139,11 @@ export class CsvImportController {
   async getUploadHistory(
     @Query('status') status?: UploadStatus,
   ): Promise<UploadHistoryResponseDto> {
-    let uploads = this.uploadHistoryService.getAllUploads();
+    let uploads = await this.uploadHistoryService.getAllUploads();
 
     // Filter by status if provided
     if (status && Object.values(UploadStatus).includes(status)) {
-      uploads = this.uploadHistoryService.getUploadsByStatus(status);
+      uploads = await this.uploadHistoryService.getUploadsByStatus(status);
     }
 
     const success = uploads.filter(
@@ -184,7 +184,7 @@ export class CsvImportController {
     description: 'Upload record not found',
   })
   async getUploadById(@Param('id') id: string) {
-    const upload = this.uploadHistoryService.getUploadById(id);
+    const upload = await this.uploadHistoryService.getUploadById(id);
     if (!upload) {
       throw new NotFoundException('Upload record not found');
     }
@@ -215,7 +215,7 @@ export class CsvImportController {
     description: 'Upload record or CSV data not found',
   })
   async getUploadData(@Param('id') id: string) {
-    const upload = this.uploadHistoryService.getUploadById(id);
+    const upload = await this.uploadHistoryService.getUploadById(id);
     if (!upload) {
       throw new NotFoundException('Upload record not found');
     }
