@@ -3,6 +3,7 @@ import { UploadHistoryResponse, UploadRecord, UploadStatus, CsvRow } from '../ty
 import { getUploadHistory, getUploadData, UploadHistoryFilters, downloadOriginalFile, bulkDeleteUploads, exportCsvData } from '../services/api';
 import CustomDropdown from './CustomDropdown';
 import CustomDatePicker from './CustomDatePicker';
+import ConfirmationDialog from './ConfirmationDialog';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useDebounce } from '../hooks/useDebounce';
 import { useCache } from '../hooks/useCache';
@@ -35,6 +36,7 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
   // Modal data sorting and pagination
   const [modalSortConfig, setModalSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
@@ -288,23 +290,24 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
     }
   };
 
-  // Handle bulk delete
-  const handleBulkDelete = async () => {
+  // Handle bulk delete confirmation
+  const handleBulkDeleteClick = () => {
     if (selectedIds.size === 0) {
       showInfo('Please select at least one upload to delete');
       return;
     }
+    setShowDeleteDialog(true);
+  };
 
-    if (!confirm(`Are you sure you want to delete ${selectedIds.size} upload(s)? This action cannot be undone.`)) {
-      return;
-    }
-
+  // Handle bulk delete execution
+  const handleBulkDeleteConfirm = async () => {
     try {
       setDeleting(true);
       const idsArray = Array.from(selectedIds);
       await bulkDeleteUploads(idsArray);
       showSuccess(`Successfully deleted ${idsArray.length} upload(s)`);
       setSelectedIds(new Set()); // Clear selection
+      setShowDeleteDialog(false); // Close dialog
       // Refresh history
       cache.clear();
       await loadAllHistory();
@@ -711,7 +714,7 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
                 </span>
               </div>
               <button
-                onClick={handleBulkDelete}
+                onClick={handleBulkDeleteClick}
                 disabled={deleting}
                 className={`px-4 py-2 rounded-xl font-semibold text-sm transition-smooth flex items-center gap-2 ${
                   deleting
@@ -1273,6 +1276,21 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
           </div>
         </div>
       )}
+
+      {/* Confirmation Dialog for Bulk Delete */}
+      <ConfirmationDialog
+        isOpen={showDeleteDialog}
+        title="Delete Uploads?"
+        message={`You are about to permanently delete ${selectedIds.size} upload${selectedIds.size !== 1 ? 's' : ''}.`}
+        warningMessage="This action cannot be undone. All data associated with these uploads, including CSV data and original files, will be permanently removed from the database."
+        confirmText="Delete Permanently"
+        cancelText="Cancel"
+        onConfirm={handleBulkDeleteConfirm}
+        onCancel={() => setShowDeleteDialog(false)}
+        darkMode={darkMode}
+        variant="danger"
+        isLoading={deleting}
+      />
     </div>
   );
 };
