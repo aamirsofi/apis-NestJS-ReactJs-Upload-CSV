@@ -160,11 +160,14 @@ This document tracks all features, enhancements, and improvements for the CSV Im
 - Transform column values
 - **Status:** Not Started
 
-#### 15. Column Mapping
+#### 15. Column Mapping ✅
 
-- Map CSV columns to database fields
-- Handle mismatched column names
-- **Status:** Not Started
+- ✅ Map CSV columns to database fields
+- ✅ Handle mismatched column names
+- ✅ Visual column mapping interface in preview modal
+- ✅ Real-time mapping preview
+- ✅ Apply mapping during import
+- **Status:** ✅ Fully Implemented
 
 #### 16. Batch Operations
 

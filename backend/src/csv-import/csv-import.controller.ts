@@ -119,11 +119,18 @@ export class CsvImportController {
     enum: ['skip', 'keep', 'mark'],
     description: 'How to handle duplicates: skip (remove duplicates), keep (keep all), mark (keep all but mark in warnings)',
   })
+  @ApiQuery({
+    name: 'columnMapping',
+    required: false,
+    type: String,
+    description: 'JSON string mapping source column names to target column names (e.g., {"oldName": "newName"})',
+  })
   async uploadCsv(
     @UploadedFile() file: Express.Multer.File, // Extracts uploaded file from request
     @Query('detectDuplicates') detectDuplicates?: string,
     @Query('duplicateColumns') duplicateColumns?: string,
     @Query('handleDuplicates') handleDuplicates?: 'skip' | 'keep' | 'mark',
+    @Query('columnMapping') columnMappingStr?: string,
   ): Promise<CsvImportResponseDto> {
     // Validation: Check if file was uploaded
     if (!file) {
@@ -143,16 +150,27 @@ export class CsvImportController {
     );
 
     try {
-      // Step 2: Parse the CSV file with duplicate detection options
+      // Step 2: Parse the CSV file with duplicate detection and column mapping options
       // csvImportService.parseCsv() converts the file buffer into structured data
       const columnsToCheck = duplicateColumns
         ? duplicateColumns.split(',').map((col) => col.trim()).filter((col) => col.length > 0)
         : undefined;
 
+      // Parse column mapping JSON string
+      let columnMapping: Record<string, string> | undefined;
+      if (columnMappingStr) {
+        try {
+          columnMapping = JSON.parse(columnMappingStr);
+        } catch (error) {
+          throw new BadRequestException('Invalid column mapping JSON format');
+        }
+      }
+
       const result = await this.csvImportService.parseCsv(file.buffer, {
         detectDuplicates: detectDuplicates === 'true',
         duplicateColumns: columnsToCheck,
         handleDuplicates: handleDuplicates || 'mark',
+        columnMapping,
       });
 
       // Step 3: Store original file buffer for download later

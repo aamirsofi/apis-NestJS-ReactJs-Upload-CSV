@@ -90,12 +90,41 @@ export class CsvImportService {
     return { duplicates, uniqueRows };
   }
 
+  /**
+   * applyColumnMapping - Applies column mapping to CSV data
+   *
+   * @param data - Array of CSV rows
+   * @param columnMapping - Object mapping source column names to target column names
+   * @returns Transformed data with mapped column names
+   */
+  applyColumnMapping(
+    data: CsvRow[],
+    columnMapping: Record<string, string>,
+  ): CsvRow[] {
+    if (!columnMapping || Object.keys(columnMapping).length === 0) {
+      return data;
+    }
+
+    return data.map((row) => {
+      const mappedRow: CsvRow = {};
+      
+      // Apply mapping: if column exists in mapping, use mapped name; otherwise keep original
+      Object.keys(row).forEach((sourceColumn) => {
+        const targetColumn = columnMapping[sourceColumn] || sourceColumn;
+        mappedRow[targetColumn] = row[sourceColumn];
+      });
+      
+      return mappedRow;
+    });
+  }
+
   async parseCsv(
     fileBuffer: Buffer,
     options?: {
       detectDuplicates?: boolean;
       duplicateColumns?: string[];
       handleDuplicates?: 'skip' | 'keep' | 'mark';
+      columnMapping?: Record<string, string>;
     },
   ): Promise<{
     data: CsvRow[];
@@ -180,6 +209,11 @@ export class CsvImportService {
           });
         }
         // If 'keep', do nothing - keep all rows including duplicates
+      }
+
+      // Apply column mapping if provided
+      if (options?.columnMapping && Object.keys(options.columnMapping).length > 0) {
+        finalData = this.applyColumnMapping(finalData, options.columnMapping);
       }
 
       return { data: finalData, errors, duplicates };

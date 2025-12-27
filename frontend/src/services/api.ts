@@ -11,6 +11,7 @@ export interface DuplicateDetectionOptions {
   detectDuplicates?: boolean;
   duplicateColumns?: string[];
   handleDuplicates?: 'skip' | 'keep' | 'mark';
+  columnMapping?: Record<string, string>;
 }
 
 export const uploadCsv = async (
@@ -29,6 +30,9 @@ export const uploadCsv = async (
   }
   if (options?.handleDuplicates) {
     params.handleDuplicates = options.handleDuplicates;
+  }
+  if (options?.columnMapping && Object.keys(options.columnMapping).length > 0) {
+    params.columnMapping = JSON.stringify(options.columnMapping);
   }
 
   try {
