@@ -37,6 +37,7 @@ import {
   ApiBody,
   ApiQuery,
   ApiParam,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Express } from 'express';
@@ -46,12 +47,16 @@ import { AuditLogService } from './services/audit-log.service';
 import { AuditAction } from './entities/audit-log.entity';
 import { CsvImportResponseDto } from './dto/csv-import-response.dto';
 import { UploadHistoryResponseDto } from './dto/upload-history-response.dto';
+import { BulkDeleteDto } from './dto/bulk-delete.dto';
+import { BulkDeleteResponseDto } from './dto/bulk-delete-response.dto';
+import { AuditLogResponseDto } from './dto/audit-log-response.dto';
 import { UploadStatus } from './interfaces/upload-status.enum';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('csv-import') // Groups endpoints in Swagger docs
+@ApiBearerAuth('JWT-auth') // All endpoints require JWT authentication
 @Controller('csv-import') // Base route: all endpoints start with /csv-import
 export class CsvImportController {
   /**
@@ -282,15 +287,22 @@ export class CsvImportController {
    * Note: This route must be defined before 'history/:id' to avoid route conflicts
    */
   @Get('audit-logs')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Get audit logs',
-    description: 'Retrieves audit logs with optional filtering by action, upload ID, and date range.',
+    description: 'Retrieves audit logs with optional filtering by action, user ID, upload ID, and date range. Includes user information (name and email) for each log entry.',
   })
   @ApiQuery({
     name: 'action',
     required: false,
     enum: AuditAction,
     description: 'Filter by action type',
+  })
+  @ApiQuery({
+    name: 'userId',
+    required: false,
+    type: String,
+    description: 'Filter by user ID',
   })
   @ApiQuery({
     name: 'uploadId',
@@ -325,8 +337,12 @@ export class CsvImportController {
   @ApiResponse({
     status: 200,
     description: 'Audit logs retrieved successfully',
+    type: AuditLogResponseDto,
   })
-  @UseGuards(JwtAuthGuard)
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing token',
+  })
   async getAuditLogs(
     @Query('action') action?: string,
     @Query('userId') userId?: string,
@@ -335,7 +351,7 @@ export class CsvImportController {
     @Query('endDate') endDate?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
-  ) {
+  ): Promise<AuditLogResponseDto> {
     const filters: {
       action?: AuditAction;
       userId?: string;
@@ -744,16 +760,30 @@ export class CsvImportController {
    */
   @Delete('history/bulk')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Bulk delete uploads',
-    description: 'Deletes multiple upload records by their IDs.',
+    description: 'Permanently deletes multiple upload records and their associated data (CSV data and original files) by their IDs. This action cannot be undone.',
+  })
+  @ApiBody({
+    type: BulkDeleteDto,
+    description: 'Array of upload record IDs to delete',
   })
   @ApiResponse({
     status: 200,
     description: 'Uploads deleted successfully',
+    type: BulkDeleteResponseDto,
   })
-  @UseGuards(JwtAuthGuard)
-  async bulkDelete(@Body('ids') ids: string[], @CurrentUser() user?: any, @Req() req?: ExpressRequest) {
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Invalid or empty IDs array',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing token',
+  })
+  async bulkDelete(@Body() bulkDeleteDto: BulkDeleteDto, @CurrentUser() user?: any, @Req() req?: ExpressRequest) {
+    const ids = bulkDeleteDto.ids;
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       throw new BadRequestException('ids array is required and must not be empty');
     }
