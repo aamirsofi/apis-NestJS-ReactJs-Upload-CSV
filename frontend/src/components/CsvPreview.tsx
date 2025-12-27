@@ -3,6 +3,7 @@ import { CsvData } from "../types";
 import { exportCsvData } from '../services/api';
 import CustomDropdown from './CustomDropdown';
 import VirtualizedTable from './VirtualizedTable';
+import { useToast } from '../contexts/ToastContext';
 
 interface CsvPreviewProps {
   data: CsvData;
@@ -22,6 +23,7 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset, darkMode = false
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(5); // Default to 5 so pagination shows more often
   const [useVirtualization, setUseVirtualization] = useState<boolean>(false);
+  const { showSuccess, showError } = useToast();
   
   // Use virtualization for datasets larger than 100 rows
   const shouldUseVirtualization = data.data.length > 100;
@@ -65,8 +67,9 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset, darkMode = false
     try {
       setExporting(true);
       await exportCsvData(data.uploadId, 'export.csv');
+      showSuccess('CSV exported successfully!');
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to export CSV');
+      showError(error instanceof Error ? error.message : 'Failed to export CSV');
     } finally {
       setExporting(false);
     }

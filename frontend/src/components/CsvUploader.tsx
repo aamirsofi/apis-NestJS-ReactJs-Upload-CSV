@@ -3,6 +3,7 @@ import { useDropzone } from 'react-dropzone';
 import { uploadCsv } from '../services/api';
 import { CsvData } from '../types';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useToast } from '../contexts/ToastContext';
 
 interface CsvUploaderProps {
   onUploadSuccess: (data: CsvData) => void;
@@ -21,6 +22,7 @@ const CsvUploader: React.FC<CsvUploaderProps> = ({
 }) => {
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const { showSuccess, showError } = useToast();
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -34,6 +36,7 @@ const CsvUploader: React.FC<CsvUploaderProps> = ({
 
       // Validate file type
       if (!file.name.match(/\.(csv)$/i)) {
+        showError('Please upload a CSV file');
         onUploadError('Please upload a CSV file');
         return;
       }
@@ -42,11 +45,12 @@ const CsvUploader: React.FC<CsvUploaderProps> = ({
       onLoadingChange(true);
       try {
         const result = await uploadCsv(file);
+        showSuccess(`CSV file "${file.name}" uploaded successfully! ${result.totalRows} rows imported.`);
         onUploadSuccess(result);
       } catch (error) {
-        onUploadError(
-          error instanceof Error ? error.message : 'Failed to upload CSV file'
-        );
+        const errorMessage = error instanceof Error ? error.message : 'Failed to upload CSV file';
+        showError(errorMessage);
+        onUploadError(errorMessage);
       } finally {
         setIsUploading(false);
         onLoadingChange(false);

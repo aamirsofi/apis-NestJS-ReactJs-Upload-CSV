@@ -3,6 +3,7 @@ import CsvUploader from './components/CsvUploader'
 import CsvPreview from './components/CsvPreview'
 import UploadHistory from './components/UploadHistory'
 import StatisticsDashboard from './components/StatisticsDashboard'
+import { ToastProvider } from './contexts/ToastContext'
 import { CsvData, UploadRecord } from './types'
 
 function App() {
@@ -41,12 +42,13 @@ function App() {
   }
 
   return (
-    <div className={`min-h-screen transition-smooth ${
-      darkMode 
-        ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
-        : 'bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50'
-    }`}>
-      <div className="container mx-auto px-4 py-8">
+    <ToastProvider darkMode={darkMode}>
+      <div className={`min-h-screen transition-smooth ${
+        darkMode 
+          ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
+          : 'bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50'
+      }`}>
+        <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           {/* Header with Dark Mode Toggle */}
           <header className="text-center mb-8 relative">
@@ -177,6 +179,7 @@ function App() {
         </div>
       </div>
     </div>
+    </ToastProvider>
   )
 }
 

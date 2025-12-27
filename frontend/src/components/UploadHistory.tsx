@@ -6,6 +6,7 @@ import CustomDatePicker from './CustomDatePicker';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useDebounce } from '../hooks/useDebounce';
 import { useCache } from '../hooks/useCache';
+import { useToast } from '../contexts/ToastContext';
 
 interface UploadHistoryProps {
   onUploadClick?: (upload: UploadRecord) => void;
@@ -17,6 +18,7 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
   const [allHistory, setAllHistory] = useState<UploadHistoryResponse | null>(null); // Store all uploads for accurate counts
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { showSuccess, showError, showInfo } = useToast();
   const [filter, setFilter] = useState<UploadStatus | 'all'>('all');
   
   // Advanced filter states
@@ -137,7 +139,9 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
       setHistory(data);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load upload history');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load upload history';
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -299,7 +303,9 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
         setUploadData(data.data);
         setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load CSV data');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load CSV data';
+        setError(errorMessage);
+        showError(errorMessage);
         setUploadData(null);
       } finally {
         setLoadingData(false);
@@ -379,8 +385,9 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
     try {
       setExportingModal(true);
       await exportCsvData(selectedUpload.id, selectedUpload.fileName);
+      showSuccess(`CSV exported successfully: ${selectedUpload.fileName}`);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to export CSV');
+      showError(error instanceof Error ? error.message : 'Failed to export CSV');
     } finally {
       setExportingModal(false);
     }
