@@ -14,6 +14,10 @@ This document tracks all features, enhancements, and improvements for the CSV Im
 - ✅ **Data Preview** - View imported CSV data in a table format
 - ✅ **Database Persistence** - PostgreSQL integration with TypeORM
 - ✅ **API Documentation** - Swagger/OpenAPI documentation
+  - ✅ Complete endpoint documentation with request/response schemas
+  - ✅ JWT authentication documentation
+  - ✅ Audit logs and bulk delete endpoints documented
+  - ✅ Proper DTOs for all endpoints
 
 ### User Interface & Experience
 
@@ -23,13 +27,20 @@ This document tracks all features, enhancements, and improvements for the CSV Im
 - ✅ **Custom Date Picker** - Modern calendar picker with month navigation
 - ✅ **Responsive Design** - Mobile-friendly layout
 - ✅ **Loading States** - Spinner animations during operations
+- ✅ **Modal Improvements** - React Portal rendering for proper full-screen overlays
+  - ✅ Proper backdrop visibility across entire viewport
+  - ✅ Click outside to close functionality
+  - ✅ Escape key to close
+  - ✅ Proper z-index management
 
 ### Data Management
 
 - ✅ **Pagination** - Paginated tables for upload history and data preview
 - ✅ **Column Sorting** - Sort data by clicking column headers (ascending/descending)
 - ✅ **Advanced Filtering** - Filter by status, date range, file size, and filename search
+- ✅ **Clear Filters** - One-click filter reset with cache clearing and state management
 - ✅ **Bulk Delete** - Select and delete multiple upload records
+- ✅ **Confirmation Dialog** - Modern confirmation dialog for permanent deletions with clear warnings
 - ✅ **Export to CSV** - Export filtered/parsed data as CSV
 - ✅ **Download Original File** - Download the originally uploaded CSV file
 - ✅ **Enhanced Error Messages** - Error messages with row numbers for failed imports
@@ -67,12 +78,14 @@ This document tracks all features, enhancements, and improvements for the CSV Im
 - ✅ Dark mode support
 - **Status:** ✅ Fully Implemented
 
-#### 2. Search in Data Preview Modal
+#### 2. Search in Data Preview Modal ✅
 
-- Filter rows in the modal by any column
-- Real-time search as you type
-- Highlight matching text
-- **Status:** Not Started
+- ✅ Filter rows in the modal by any column
+- ✅ Real-time search as you type (debounced)
+- ✅ Highlight matching text in search results
+- ✅ Display filtered row count
+- ✅ Clear search button
+- **Status:** ✅ Fully Implemented
 
 #### 3. Export to Excel
 
@@ -237,6 +250,10 @@ This document tracks all features, enhancements, and improvements for the CSV Im
 - ✅ User email display in audit logs
 - ✅ Filter audit logs by user ID
 - ✅ All CSV import endpoints protected with authentication
+- ✅ Optimized pagination (default 25 items, max 100)
+- ✅ Scrollable table with max-height (600px)
+- ✅ Sticky table header for better navigation
+- ✅ File name display for delete actions (including bulk deletes)
 - **Status:** ✅ Fully Implemented
 
 #### 24. Data Export Templates
@@ -298,10 +315,10 @@ This document tracks all features, enhancements, and improvements for the CSV Im
 
 ## 📊 Feature Statistics
 
-- **Completed:** 22+ features
+- **Completed:** 28+ features
 - **In Progress:** 0 features
-- **Planned:** 29+ features
-- **Total:** 50+ features
+- **Planned:** 23+ features
+- **Total:** 51+ features
 
 ---
 
@@ -309,11 +326,11 @@ This document tracks all features, enhancements, and improvements for the CSV Im
 
 Based on impact and ease of implementation, we recommend prioritizing:
 
-1. **Search in Data Preview Modal** - High value for users
-2. **Export to Excel** - Additional export format
-3. **Loading Skeletons** - Better perceived performance
-4. **Print Functionality** - Quick win for usability
-5. **Role-Based Access Control** - Enterprise feature for multi-user environments
+1. **Export to Excel** - Additional export format
+2. **Loading Skeletons** - Better perceived performance
+3. **Print Functionality** - Quick win for usability
+4. **Role-Based Access Control** - Enterprise feature for multi-user environments
+5. **Data Validation Rules** - Enhanced data quality control
 
 ---
 
