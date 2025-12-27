@@ -2,6 +2,7 @@ import { useState } from 'react'
 import CsvUploader from './components/CsvUploader'
 import CsvPreview from './components/CsvPreview'
 import UploadHistory from './components/UploadHistory'
+import StatisticsDashboard from './components/StatisticsDashboard'
 import { CsvData, UploadRecord } from './types'
 
 function App() {
@@ -9,6 +10,7 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
+  const [showStatistics, setShowStatistics] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
 
   const handleUploadSuccess = (data: CsvData) => {
@@ -30,6 +32,7 @@ function App() {
     setCsvData(null)
     setError(null)
     setShowHistory(false)
+    setShowStatistics(false)
   }
 
   const handleUploadClick = (upload: UploadRecord) => {
@@ -79,14 +82,15 @@ function App() {
           </header>
 
           {/* Navigation Buttons */}
-          <div className="mb-6 flex justify-center gap-3">
+          <div className="mb-6 flex justify-center gap-3 flex-wrap">
             <button
               onClick={() => {
                 setShowHistory(false);
+                setShowStatistics(false);
                 setCsvData(null);
               }}
               className={`px-6 py-3 rounded-xl font-semibold transition-smooth hover-lift ${
-                !showHistory && !csvData
+                !showHistory && !showStatistics && !csvData
                   ? darkMode
                     ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/50'
                     : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
@@ -100,10 +104,11 @@ function App() {
             <button
               onClick={() => {
                 setShowHistory(true);
+                setShowStatistics(false);
                 setCsvData(null);
               }}
               className={`px-6 py-3 rounded-xl font-semibold transition-smooth hover-lift ${
-                showHistory
+                showHistory && !showStatistics
                   ? darkMode
                     ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/50'
                     : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
@@ -114,10 +119,30 @@ function App() {
             >
               Upload History
             </button>
+            <button
+              onClick={() => {
+                setShowStatistics(true);
+                setShowHistory(false);
+                setCsvData(null);
+              }}
+              className={`px-6 py-3 rounded-xl font-semibold transition-smooth hover-lift ${
+                showStatistics
+                  ? darkMode
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/50'
+                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
+                  : darkMode
+                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 shadow-md'
+              }`}
+            >
+              Statistics
+            </button>
           </div>
 
           {/* Main Content */}
-          {showHistory ? (
+          {showStatistics ? (
+            <StatisticsDashboard darkMode={darkMode} />
+          ) : showHistory ? (
             <UploadHistory onUploadClick={handleUploadClick} darkMode={darkMode} />
           ) : !csvData ? (
             <>
