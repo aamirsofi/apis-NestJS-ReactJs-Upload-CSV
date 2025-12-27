@@ -1,11 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { detectColumnType, getDataTypeLabel, getDataTypeColor } from '../utils/dataTypeDetection';
 
 interface PreviewModalProps {
   fileName: string;
   previewData: Record<string, string>[];
   columns: string[];
-  onConfirm: () => void;
+  onConfirm: (options?: { detectDuplicates: boolean; duplicateColumns?: string[]; handleDuplicates: 'skip' | 'keep' | 'mark' }) => void;
   onCancel: () => void;
   darkMode?: boolean;
 }
@@ -18,6 +18,10 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   onCancel,
   darkMode = false,
 }) => {
+  const [detectDuplicates, setDetectDuplicates] = useState(false);
+  const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  const [handleDuplicates, setHandleDuplicates] = useState<'skip' | 'keep' | 'mark'>('mark');
+
   // Detect column types
   const columnTypes = useMemo(() => {
     const types: Record<string, ReturnType<typeof detectColumnType>> = {};
@@ -29,6 +33,22 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     
     return types;
   }, [columns, previewData]);
+
+  const handleConfirm = () => {
+    onConfirm({
+      detectDuplicates,
+      duplicateColumns: detectDuplicates && selectedColumns.length > 0 ? selectedColumns : undefined,
+      handleDuplicates,
+    });
+  };
+
+  const toggleColumn = (column: string) => {
+    setSelectedColumns(prev =>
+      prev.includes(column)
+        ? prev.filter(c => c !== column)
+        : [...prev, column]
+    );
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -144,6 +164,106 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
           </div>
         </div>
 
+        {/* Duplicate Detection Options */}
+        <div className={`mb-6 p-4 rounded-xl border-2 ${
+          darkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'
+        }`}>
+          <div className="flex items-center gap-3 mb-4">
+            <input
+              type="checkbox"
+              id="detectDuplicates"
+              checked={detectDuplicates}
+              onChange={(e) => setDetectDuplicates(e.target.checked)}
+              className={`w-5 h-5 rounded ${
+                darkMode ? 'bg-gray-700 border-gray-600 text-indigo-500' : 'border-gray-300 text-indigo-600'
+              }`}
+            />
+            <label
+              htmlFor="detectDuplicates"
+              className={`text-lg font-semibold cursor-pointer ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}
+            >
+              Detect Duplicates
+            </label>
+          </div>
+
+          {detectDuplicates && (
+            <div className="ml-8 space-y-4">
+              {/* Column Selection */}
+              <div>
+                <p className={`text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Check duplicates based on:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setSelectedColumns([])}
+                    className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-smooth ${
+                      selectedColumns.length === 0
+                        ? darkMode
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-indigo-600 text-white'
+                        : darkMode
+                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                    }`}
+                  >
+                    All Columns
+                  </button>
+                  {columns.map((column) => (
+                    <button
+                      key={column}
+                      onClick={() => toggleColumn(column)}
+                      className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-smooth ${
+                        selectedColumns.includes(column)
+                          ? darkMode
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-indigo-600 text-white'
+                          : darkMode
+                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                      }`}
+                    >
+                      {column}
+                    </button>
+                  ))}
+                </div>
+                {selectedColumns.length > 0 && (
+                  <p className={`text-xs mt-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Checking {selectedColumns.length} column{selectedColumns.length !== 1 ? 's' : ''}: {selectedColumns.join(', ')}
+                  </p>
+                )}
+              </div>
+
+              {/* Handle Duplicates Option */}
+              <div>
+                <p className={`text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  When duplicates are found:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {(['skip', 'keep', 'mark'] as const).map((option) => (
+                    <button
+                      key={option}
+                      onClick={() => setHandleDuplicates(option)}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-smooth capitalize ${
+                        handleDuplicates === option
+                          ? darkMode
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-indigo-600 text-white'
+                          : darkMode
+                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                      }`}
+                    >
+                      {option === 'skip' && 'Skip Duplicates'}
+                      {option === 'keep' && 'Keep All'}
+                      {option === 'mark' && 'Mark in Warnings'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Footer with Actions */}
         <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
           <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -161,7 +281,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
               Cancel
             </button>
             <button
-              onClick={onConfirm}
+              onClick={handleConfirm}
               className={`px-6 py-3 rounded-xl font-semibold transition-smooth ${
                 darkMode
                   ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/50'

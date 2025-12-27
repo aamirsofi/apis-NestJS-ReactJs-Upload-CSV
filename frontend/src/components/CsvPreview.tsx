@@ -28,6 +28,17 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset, darkMode = false
   // Use virtualization for datasets larger than 100 rows
   const shouldUseVirtualization = data.data.length > 100;
 
+  // Create a map of duplicate rows for highlighting
+  const duplicateRowMap = useMemo(() => {
+    const map = new Map<number, number>();
+    if (data.duplicates) {
+      data.duplicates.forEach((dup) => {
+        map.set(dup.row, dup.duplicateOf);
+      });
+    }
+    return map;
+  }, [data.duplicates]);
+
   const sortedData = useMemo(() => {
     if (!sortConfig) return data.data;
     
@@ -116,9 +127,18 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset, darkMode = false
               CSV Data Preview
             </h2>
           </div>
-          <p className={`text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            {data.totalRows} row{data.totalRows !== 1 ? "s" : ""} imported
-          </p>
+               <p className={`text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                 {data.totalRows} row{data.totalRows !== 1 ? "s" : ""} imported
+                 {data.duplicateCount && data.duplicateCount > 0 && (
+                   <span className={`ml-2 px-2 py-1 rounded-lg text-sm font-medium ${
+                     darkMode 
+                       ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                       : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                   }`}>
+                     {data.duplicateCount} duplicate{data.duplicateCount !== 1 ? 's' : ''} detected
+                   </span>
+                 )}
+               </p>
         </div>
         <div className="flex gap-3">
           {data.uploadId && (
@@ -242,14 +262,24 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset, darkMode = false
               <tbody className={`divide-y ${
                 darkMode ? 'bg-gray-900/50 divide-gray-800' : 'bg-white divide-gray-200'
               }`}>
-                {paginatedData.map((row, rowIndex) => (
+                {paginatedData.map((row, rowIndex) => {
+                  const actualRowNumber = startIndex + rowIndex + 2;
+                  const isDuplicate = duplicateRowMap.has(actualRowNumber);
+                  const duplicateOf = duplicateRowMap.get(actualRowNumber);
+                  
+                  return (
                   <tr 
                     key={rowIndex} 
                     className={`transition-smooth ${
-                      darkMode 
-                        ? 'hover:bg-gray-800' 
-                        : 'hover:bg-indigo-50/50'
+                      isDuplicate
+                        ? darkMode
+                          ? 'bg-yellow-500/10 border-l-4 border-yellow-500/50'
+                          : 'bg-yellow-50 border-l-4 border-yellow-400'
+                        : darkMode 
+                          ? 'hover:bg-gray-800' 
+                          : 'hover:bg-indigo-50/50'
                     }`}
+                    title={isDuplicate ? `Duplicate of row ${duplicateOf}` : undefined}
                   >
                     {headers.map((header, colIndex) => (
                       <td
@@ -258,11 +288,23 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset, darkMode = false
                           darkMode ? 'text-gray-300' : 'text-gray-900'
                         }`}
                       >
-                        {row[header] || <span className="opacity-50">-</span>}
+                        <div className="flex items-center gap-2">
+                          {row[header] || <span className="opacity-50">-</span>}
+                          {colIndex === 0 && isDuplicate && (
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                              darkMode
+                                ? 'bg-yellow-500/20 text-yellow-400'
+                                : 'bg-yellow-200 text-yellow-800'
+                            }`}>
+                              Duplicate
+                            </span>
+                          )}
+                        </div>
                       </td>
                     ))}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -7,15 +7,36 @@ const api = axios.create({
   baseURL: API_BASE_URL,
 });
 
-export const uploadCsv = async (file: File): Promise<CsvData> => {
+export interface DuplicateDetectionOptions {
+  detectDuplicates?: boolean;
+  duplicateColumns?: string[];
+  handleDuplicates?: 'skip' | 'keep' | 'mark';
+}
+
+export const uploadCsv = async (
+  file: File,
+  options?: DuplicateDetectionOptions,
+): Promise<CsvData> => {
   const formData = new FormData();
   formData.append('file', file);
+
+  const params: Record<string, string> = {};
+  if (options?.detectDuplicates) {
+    params.detectDuplicates = 'true';
+  }
+  if (options?.duplicateColumns && options.duplicateColumns.length > 0) {
+    params.duplicateColumns = options.duplicateColumns.join(',');
+  }
+  if (options?.handleDuplicates) {
+    params.handleDuplicates = options.handleDuplicates;
+  }
 
   try {
     const response = await api.post<CsvData>('/csv-import/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      params,
     });
     return response.data;
   } catch (error) {

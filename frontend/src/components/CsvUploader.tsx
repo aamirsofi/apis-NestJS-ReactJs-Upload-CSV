@@ -1,6 +1,6 @@
 import { useCallback, useState, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { uploadCsv } from '../services/api';
+import { uploadCsv, DuplicateDetectionOptions } from '../services/api';
 import { CsvData } from '../types';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useToast } from '../contexts/ToastContext';
@@ -130,7 +130,7 @@ const CsvUploader: React.FC<CsvUploaderProps> = ({
   );
 
   // Handle confirmed upload
-  const handleConfirmUpload = useCallback(async () => {
+  const handleConfirmUpload = useCallback(async (options?: DuplicateDetectionOptions) => {
     if (!previewFile) return;
 
     setIsUploading(true);
@@ -138,8 +138,14 @@ const CsvUploader: React.FC<CsvUploaderProps> = ({
     setShowPreview(false);
     
     try {
-      const result = await uploadCsv(previewFile);
-      showSuccess(`CSV file "${previewFile.name}" uploaded successfully! ${result.totalRows} rows imported.`);
+      const result = await uploadCsv(previewFile, options);
+      let successMessage = `CSV file "${previewFile.name}" uploaded successfully! ${result.totalRows} row${result.totalRows !== 1 ? 's' : ''} imported.`;
+      
+      if (result.duplicateCount && result.duplicateCount > 0) {
+        successMessage += ` ${result.duplicateCount} duplicate${result.duplicateCount !== 1 ? 's' : ''} detected.`;
+      }
+      
+      showSuccess(successMessage);
       onUploadSuccess(result);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload CSV file';

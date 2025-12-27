@@ -57,12 +57,15 @@ This document tracks all features, enhancements, and improvements for the CSV Im
 
 ### High Priority (Quick Wins)
 
-#### 1. Toast Notifications
+#### 1. Toast Notifications ✅
 
-- Replace browser alerts with toast notifications
-- Success, error, and info variants
-- Auto-dismiss with animations
-- **Status:** Not Started
+- ✅ Replace browser alerts with toast notifications
+- ✅ Success, error, info, and warning variants
+- ✅ Auto-dismiss with animations
+- ✅ Slide-in animations
+- ✅ Manual close button
+- ✅ Dark mode support
+- **Status:** ✅ Fully Implemented
 
 #### 2. Search in Data Preview Modal
 
@@ -127,18 +130,23 @@ This document tracks all features, enhancements, and improvements for the CSV Im
 
 ### Advanced Features (Data Management)
 
-#### 11. Data Preview Before Import
+#### 11. Data Preview Before Import ✅
 
-- Show first few rows before confirming import
-- Column mapping preview
-- Data type detection
-- **Status:** Not Started
+- ✅ Show first few rows before confirming import (up to 10 rows)
+- ✅ Column mapping preview with detected columns
+- ✅ Data type detection (string, number, date, boolean, email, URL, mixed)
+- ✅ Type confidence indicators
+- ✅ Preview modal with confirm/cancel options
+- **Status:** ✅ Fully Implemented
 
-#### 12. Duplicate Detection
+#### 12. Duplicate Detection ✅
 
-- Identify duplicate rows during import
-- Options to skip or merge duplicates
-- **Status:** Not Started
+- ✅ Identify duplicate rows during import
+- ✅ Options to skip, keep, or mark duplicates
+- ✅ Column-based duplicate detection (all columns or specific columns)
+- ✅ Visual highlighting of duplicate rows in preview
+- ✅ Duplicate count display in import summary
+- **Status:** ✅ Fully Implemented
 
 #### 13. Data Validation Rules
 

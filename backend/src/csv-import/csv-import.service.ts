@@ -36,9 +36,71 @@ export class CsvImportService {
    * 3. Convert to array of objects (first row becomes keys)
    * 4. Return parsed data
    */
-  async parseCsv(fileBuffer: Buffer): Promise<{
+  /**
+   * detectDuplicates - Identifies duplicate rows in CSV data
+   *
+   * @param data - Array of CSV rows
+   * @param columns - Optional array of column names to check for duplicates (if empty, checks all columns)
+   * @returns Object containing duplicate information
+   */
+  detectDuplicates(
+    data: CsvRow[],
+    columns?: string[],
+  ): {
+    duplicates: Array<{
+      row: number;
+      duplicateOf: number;
+      data: CsvRow;
+    }>;
+    uniqueRows: CsvRow[];
+  } {
+    const duplicates: Array<{
+      row: number;
+      duplicateOf: number;
+      data: CsvRow;
+    }> = [];
+    const seen = new Map<string, number>();
+    const uniqueRows: CsvRow[] = [];
+
+    // Get columns to check (all columns if not specified)
+    const columnsToCheck = columns && columns.length > 0 
+      ? columns 
+      : data.length > 0 ? Object.keys(data[0]) : [];
+
+    data.forEach((row, index) => {
+      // Create a key from the specified columns (or all columns)
+      const key = columnsToCheck
+        .map((col) => String(row[col] || '').trim().toLowerCase())
+        .join('|');
+
+      // Check if this row has been seen before
+      if (seen.has(key)) {
+        const duplicateOf = seen.get(key)!;
+        duplicates.push({
+          row: index + 2, // +2 because index is 0-based and we skip header row
+          duplicateOf: duplicateOf + 2,
+          data: row,
+        });
+      } else {
+        seen.set(key, index);
+        uniqueRows.push(row);
+      }
+    });
+
+    return { duplicates, uniqueRows };
+  }
+
+  async parseCsv(
+    fileBuffer: Buffer,
+    options?: {
+      detectDuplicates?: boolean;
+      duplicateColumns?: string[];
+      handleDuplicates?: 'skip' | 'keep' | 'mark';
+    },
+  ): Promise<{
     data: CsvRow[];
     errors: Array<{ row: number; message: string }>;
+    duplicates?: Array<{ row: number; duplicateOf: number; data: CsvRow }>;
   }> {
     try {
       const csvContent = fileBuffer.toString('utf-8').trim();
@@ -92,7 +154,35 @@ export class CsvImportService {
         throw new Error('CSV file contains no valid data rows (all rows are empty)');
       }
 
-      return { data: validRecords, errors };
+      // Duplicate detection
+      let duplicates: Array<{ row: number; duplicateOf: number; data: CsvRow }> | undefined;
+      let finalData = validRecords;
+
+      if (options?.detectDuplicates) {
+        const duplicateResult = this.detectDuplicates(
+          validRecords,
+          options.duplicateColumns,
+        );
+
+        duplicates = duplicateResult.duplicates;
+
+        // Handle duplicates based on option
+        if (options.handleDuplicates === 'skip') {
+          // Keep only unique rows
+          finalData = duplicateResult.uniqueRows;
+        } else if (options.handleDuplicates === 'mark') {
+          // Keep all rows but mark duplicates in errors
+          duplicateResult.duplicates.forEach((dup) => {
+            errors.push({
+              row: dup.row,
+              message: `Duplicate of row ${dup.duplicateOf}`,
+            });
+          });
+        }
+        // If 'keep', do nothing - keep all rows including duplicates
+      }
+
+      return { data: finalData, errors, duplicates };
     } catch (error) {
       // Enhanced error message with row context if available
       const errorMessage = error instanceof Error ? error.message : String(error);

@@ -879,8 +879,8 @@ const UploadHistory: React.FC<UploadHistoryProps> = ({ onUploadClick, darkMode =
 
       {/* Modal for viewing CSV data */}
       {selectedUpload && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className={`card-modern${darkMode ? '-dark' : ''} rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col transition-smooth`}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 pt-8 pb-4 px-4 animate-fade-in overflow-y-auto">
+          <div className={`card-modern${darkMode ? '-dark' : ''} rounded-2xl shadow-2xl max-w-6xl w-full max-h-[85vh] flex flex-col transition-smooth mt-8`}>
             <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 border-b ${
               darkMode ? 'border-gray-700' : 'border-gray-200'
             }`}>

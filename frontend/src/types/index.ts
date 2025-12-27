@@ -9,6 +9,8 @@ export interface CsvData {
   totalRows: number;
   uploadId?: string;
   warnings?: Array<{ row: number; message: string }>;
+  duplicates?: Array<{ row: number; duplicateOf: number; data: CsvRow }>;
+  duplicateCount?: number;
 }
 
 export enum UploadStatus {

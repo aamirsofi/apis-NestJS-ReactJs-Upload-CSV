@@ -5,4 +5,6 @@ export class CsvImportResponseDto {
   totalRows: number;
   uploadId?: string;
   warnings?: Array<{ row: number; message: string }>;
+  duplicates?: Array<{ row: number; duplicateOf: number; data: any }>;
+  duplicateCount?: number;
 }

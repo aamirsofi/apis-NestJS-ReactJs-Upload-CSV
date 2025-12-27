@@ -101,8 +101,29 @@ export class CsvImportController {
     status: 400,
     description: 'Bad request - Invalid file or parsing error',
   })
+  @ApiQuery({
+    name: 'detectDuplicates',
+    required: false,
+    type: Boolean,
+    description: 'Enable duplicate detection',
+  })
+  @ApiQuery({
+    name: 'duplicateColumns',
+    required: false,
+    type: String,
+    description: 'Comma-separated list of column names to check for duplicates (if empty, checks all columns)',
+  })
+  @ApiQuery({
+    name: 'handleDuplicates',
+    required: false,
+    enum: ['skip', 'keep', 'mark'],
+    description: 'How to handle duplicates: skip (remove duplicates), keep (keep all), mark (keep all but mark in warnings)',
+  })
   async uploadCsv(
     @UploadedFile() file: Express.Multer.File, // Extracts uploaded file from request
+    @Query('detectDuplicates') detectDuplicates?: string,
+    @Query('duplicateColumns') duplicateColumns?: string,
+    @Query('handleDuplicates') handleDuplicates?: 'skip' | 'keep' | 'mark',
   ): Promise<CsvImportResponseDto> {
     // Validation: Check if file was uploaded
     if (!file) {
@@ -122,9 +143,17 @@ export class CsvImportController {
     );
 
     try {
-      // Step 2: Parse the CSV file
+      // Step 2: Parse the CSV file with duplicate detection options
       // csvImportService.parseCsv() converts the file buffer into structured data
-      const result = await this.csvImportService.parseCsv(file.buffer);
+      const columnsToCheck = duplicateColumns
+        ? duplicateColumns.split(',').map((col) => col.trim()).filter((col) => col.length > 0)
+        : undefined;
+
+      const result = await this.csvImportService.parseCsv(file.buffer, {
+        detectDuplicates: detectDuplicates === 'true',
+        duplicateColumns: columnsToCheck,
+        handleDuplicates: handleDuplicates || 'mark',
+      });
 
       // Step 3: Store original file buffer for download later
       await this.uploadHistoryService.storeOriginalFile(
@@ -151,16 +180,26 @@ export class CsvImportController {
         },
       );
 
-      // Step 6: Return success response with parsed data
+      // Step 6: Prepare duplicate information
+      const duplicateCount = result.duplicates?.length || 0;
+      let finalMessage = result.errors.length > 0
+        ? `CSV file imported with ${result.errors.length} warning(s)`
+        : 'CSV file imported successfully';
+
+      if (duplicateCount > 0) {
+        finalMessage += ` (${duplicateCount} duplicate${duplicateCount !== 1 ? 's' : ''} detected)`;
+      }
+
+      // Step 7: Return success response with parsed data
       return {
         success: true,
-        message: result.errors.length > 0
-          ? `CSV file imported with ${result.errors.length} warning(s)`
-          : 'CSV file imported successfully',
+        message: finalMessage,
         data: result.data,
         totalRows: result.data.length,
         uploadId: uploadRecord.id, // Return ID so client can track this upload
         warnings: result.errors.length > 0 ? result.errors : undefined,
+        duplicates: result.duplicates,
+        duplicateCount,
       };
     } catch (error) {
       // If parsing fails, update record with FAILED status
