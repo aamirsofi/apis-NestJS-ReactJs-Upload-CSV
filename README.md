@@ -12,16 +12,57 @@ A full-stack application for importing and processing CSV files, built with Nest
 - 🛡️ Input validation and error handling
 - 📊 Upload history tracking with status (success, failed, processing)
 - 📝 Automatic API documentation (Swagger ready)
+- 🗄️ PostgreSQL database persistence
+- 🐳 Docker support for easy database setup
 
 ### Frontend (React + Vite)
 
 - 🎨 Modern, responsive UI with Tailwind CSS
+- 🌙 Dark mode support
+- ✨ Glassmorphism design effects
+- 🎭 Smooth animations and micro-interactions
 - 📤 Drag & drop file upload
 - 📊 CSV data preview in a table format
 - 📋 Upload history view with status filtering
 - ⚡ Fast development with Vite
 - 🔄 Loading states and error handling
 - 📱 Mobile-friendly design
+
+## Screenshots
+
+### Main Dashboard - Upload Interface (Light Mode)
+
+![Upload Interface](./screenshots/upload-interface.png)
+_Modern glassmorphism upload area with drag & drop functionality. Features a clean, minimalist design with purple gradient accents and intuitive file upload interface._
+
+### Dark Mode View
+
+![Dark Mode](./screenshots/dark-mode.png)
+_Beautiful dark theme with gradient backgrounds and glassmorphism effects. The dark mode provides a comfortable viewing experience with purple accents and smooth transitions._
+
+### CSV Preview - Successful Import
+
+![CSV Preview](./screenshots/csv-preview.png)
+_Clean table view showing imported CSV data with success indicators. Displays all columns and rows in a well-organized, scrollable table format with clear visual feedback._
+
+### Upload History Dashboard
+
+![Upload History](./screenshots/upload-history.png)
+_Comprehensive history view with status filtering and statistics. Shows all upload attempts with their status (Success/Failed/Processing), file sizes, row counts, timestamps, and error messages. Includes filter buttons to view specific status types._
+
+### Error Handling View
+
+![Error View](./screenshots/error-view.png)
+_User-friendly error display showing parsing failures with clear error messages. Helps users understand what went wrong during CSV import attempts._
+
+### Additional Screenshots (Coming Soon)
+
+- **Filtered History** - View showing uploads filtered by status
+- **Data Modal View** - Modal popup displaying detailed CSV data
+- **Swagger API Documentation** - Interactive API docs for developers
+- **Mobile Responsive View** - Mobile-optimized interface
+
+> **Screenshot Files:** Make sure to save your screenshots in the `screenshots/` folder with the exact filenames shown above (e.g., `upload-interface.png`, `dark-mode.png`, etc.)
 
 ## Prerequisites
 
