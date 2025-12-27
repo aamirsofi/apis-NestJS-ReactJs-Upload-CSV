@@ -228,5 +228,19 @@
   .animate-slide-in-right {
     animation: slide-in-right 0.3s ease-out;
   }
+
+  /* Hide scrollbars on virtualized list wrapper to prevent duplicate scrollbars */
+  .virtualized-list-wrapper > div {
+    overflow-x: hidden !important;
+  }
+
+  .virtualized-list-wrapper > div::-webkit-scrollbar {
+    display: none;
+  }
+
+  .virtualized-list-wrapper > div {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 

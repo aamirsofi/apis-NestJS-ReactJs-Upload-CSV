@@ -1,9 +1,9 @@
 import { List } from 'react-window';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo } from 'react';
 
 interface Column<T> {
   key: string;
-  header: string;
+  header: string | React.ReactNode;
   width: number;
   render?: (item: T, index: number) => React.ReactNode;
 }
@@ -29,28 +29,9 @@ function VirtualizedTable<T extends Record<string, any>>({
   darkMode = false,
   onRowClick,
 }: VirtualizedTableProps<T>) {
-  const [containerWidth, setContainerWidth] = useState(800);
-  
   const totalWidth = useMemo(() => {
     return columns.reduce((sum, col) => sum + col.width, 0);
   }, [columns]);
-
-  // Update container width on mount and resize
-  useEffect(() => {
-    const updateWidth = () => {
-      const container = document.querySelector('[data-virtualized-container]');
-      if (container) {
-        setContainerWidth(container.clientWidth);
-      } else {
-        // Fallback: use total column width or window width
-        setContainerWidth(Math.max(totalWidth, window.innerWidth - 100));
-      }
-    };
-
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
-  }, [totalWidth]);
 
   // Row component for virtual scrolling (react-window v2 API)
   const RowComponent = ({ index, style, ...ariaAttributes }: { 
@@ -75,7 +56,7 @@ function VirtualizedTable<T extends Record<string, any>>({
         {columns.map((column, colIndex) => (
           <div
             key={column.key}
-            style={{ width: column.width, minWidth: column.width }}
+            style={{ width: column.width, minWidth: column.width, flexShrink: 0 }}
             className={`px-4 py-2 text-sm ${
               darkMode ? 'text-gray-200' : 'text-gray-700'
             } ${colIndex === 0 ? 'font-medium' : ''}`}
@@ -92,19 +73,20 @@ function VirtualizedTable<T extends Record<string, any>>({
   // Header component
   const Header = () => (
     <div
-      className={`flex items-center border-b-2 font-semibold sticky top-0 z-10 ${
+      className={`flex items-center border-b-2 font-semibold ${
         darkMode
           ? 'bg-gray-800 border-gray-700 text-gray-200'
           : 'bg-gray-100 border-gray-300 text-gray-800'
       }`}
+      style={{ width: totalWidth, minWidth: totalWidth }}
     >
       {columns.map((column) => (
         <div
           key={column.key}
-          style={{ width: column.width, minWidth: column.width }}
+          style={{ width: column.width, minWidth: column.width, flexShrink: 0 }}
           className="px-4 py-3 text-sm"
         >
-          {column.header}
+          {typeof column.header === 'string' ? column.header : column.header}
         </div>
       ))}
     </div>
@@ -125,20 +107,49 @@ function VirtualizedTable<T extends Record<string, any>>({
   return (
     <div
       data-virtualized-container
-      className={`rounded-xl overflow-hidden border ${
+      className={`rounded-xl border ${
         darkMode ? 'border-gray-700 bg-gray-800/30' : 'border-gray-200 bg-white'
       }`}
+      style={{ overflow: 'hidden' }}
     >
-      <Header />
-      <div className="overflow-x-auto">
-        <List
-          rowCount={data.length}
-          rowHeight={rowHeight}
-          rowComponent={RowComponent}
-          rowProps={{}}
-          style={{ height, width: Math.max(totalWidth, containerWidth) }}
-          className="scrollbar-thin"
-        />
+      {/* Outer container: horizontal scrolling only */}
+      <div 
+        className="overflow-x-auto"
+        style={{ height: height + 60 }}
+      >
+        <div style={{ width: totalWidth, minWidth: totalWidth }}>
+          {/* Sticky header - scrolls horizontally with content */}
+          <div 
+            style={{ 
+              position: 'sticky', 
+              top: 0, 
+              zIndex: 10,
+              backgroundColor: darkMode ? 'rgb(31, 41, 55)' : 'rgb(243, 244, 246)'
+            }}
+          >
+            <Header />
+          </div>
+          {/* List component - wrap in container that hides its scrollbars */}
+          <div 
+            className="virtualized-list-wrapper"
+            style={{ 
+              width: totalWidth,
+              height,
+              position: 'relative'
+            }}
+          >
+            <List
+              rowCount={data.length}
+              rowHeight={rowHeight}
+              rowComponent={RowComponent}
+              rowProps={{}}
+              style={{ 
+                height, 
+                width: totalWidth
+              }}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

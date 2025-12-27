@@ -196,37 +196,25 @@ const CsvPreview: React.FC<CsvPreviewProps> = ({ data, onReset, darkMode = false
         </div>
       ) : shouldUseVirtualization && useVirtualization ? (
         /* Virtual Scrolling Table */
-        <div className="rounded-xl border overflow-hidden">
-          {/* Custom Header with Sort */}
-          <div className={`flex items-center border-b-2 font-semibold sticky top-0 z-10 ${
-            darkMode
-              ? 'bg-gray-800 border-gray-700 text-gray-200'
-              : 'bg-gray-100 border-gray-300 text-gray-800'
-          }`}>
-            {headers.map((header) => (
+        <VirtualizedTable
+          data={sortedData}
+          columns={headers.map((header) => ({
+            key: header,
+            header: (
               <div
-                key={header}
                 onClick={() => handleSort(header)}
-                className="px-4 py-3 text-sm cursor-pointer hover:opacity-80 flex items-center gap-2"
-                style={{ width: 200, minWidth: 200 }}
+                className="flex items-center gap-2 cursor-pointer hover:opacity-80"
               >
                 <span>{header}</span>
                 {getSortIcon(header)}
               </div>
-            ))}
-          </div>
-          <VirtualizedTable
-            data={sortedData}
-            columns={headers.map((header) => ({
-              key: header,
-              header: header,
-              width: 200,
-            }))}
-            height={500}
-            rowHeight={50}
-            darkMode={darkMode}
-          />
-        </div>
+            ),
+            width: 200,
+          }))}
+          height={500}
+          rowHeight={50}
+          darkMode={darkMode}
+        />
       ) : (
         <>
           <div className="overflow-x-auto rounded-xl border overflow-hidden">
